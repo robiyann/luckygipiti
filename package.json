@@ -1,0 +1,29 @@
+{
+  "name": "gpt-station",
+  "version": "2.1.0",
+  "description": "GPT Station - Automated Account Manager",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "bot": "node telegram/bot.js",
+    "test": "node src/utils/emailGenerator.js"
+  },
+  "dependencies": {
+    "axios": "^1.15.1",
+    "axios-cookiejar-support": "^4.0.0",
+    "cycletls": "^2.0.5",
+    "dotenv": "^16.4.0",
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
+    "node-telegram-bot-api": "^0.66.0",
+    "puppeteer": "^24.40.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "tough-cookie": "^4.1.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "bytenode": "^1.5.7",
+    "javascript-obfuscator": "^5.4.1"
+  }
+}
