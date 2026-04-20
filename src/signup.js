@@ -348,6 +348,7 @@ class ChatGPTSignup {
           password: this.password,
           name: this.name,
           accessToken: e.accessToken || null,
+          cookies: e.cookieJar || null, // <- tambahkan cookieJar
           message: "Akun berhasil dibuat!",
         };
       }

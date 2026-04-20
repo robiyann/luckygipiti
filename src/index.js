@@ -133,7 +133,20 @@ async function handleAccountTask(task) {
                     return;
                 }
 
-                db.saveAccount(sRes.email, { userId, password: sRes.password, accountType: 'Free', accessToken: sRes.accessToken });
+                let refreshToken = null;
+                if (sRes.cookies) {
+                    const cookieStr = typeof sRes.cookies === 'string' ? sRes.cookies : JSON.stringify(sRes.cookies);
+                    const match = cookieStr.match(/__Secure-next-auth\.session-token=([^;"]+)/);
+                    if (match && match[1]) refreshToken = match[1];
+                }
+
+                db.saveAccount(sRes.email, { 
+                    userId, 
+                    password: sRes.password, 
+                    accountType: 'Free', 
+                    accessToken: sRes.accessToken,
+                    refreshToken: refreshToken 
+                });
 
                 if (mode === 'autopay' || mode === 'auto_autopay') {
                     logger.info(`Proses pembayaran GoPay...`);
