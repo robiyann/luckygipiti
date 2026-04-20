@@ -41,14 +41,16 @@ async function handleAccountTask(task) {
     const bday = generateRandomBirthday();
 
     let currentEmail = email;
-    let orderId = null;
+    let token = null;
+    let purchaseId = null;
 
     if (mode === 'auto_signup' || mode === 'auto_autopay') {
         try {
             telegramHandler.updateStatusFor(chatId, `🛍️ <b>Membeli Email via LuckMail...</b>`);
             const purchase = await luckMailApi.purchaseEmail();
             currentEmail = purchase.email;
-            orderId = purchase.orderId;
+            token = purchase.token;
+            purchaseId = purchase.purchaseId;
             telegramHandler.updateStatusFor(chatId, `🛍️ <b>Email Didapat:</b> <code>${currentEmail}</code>`);
         } catch (e) {
             telegramHandler.updateStatusFor(chatId, `🚫 <b>LUCKMAIL FAILED</b>\n${e.message}`);
@@ -56,8 +58,8 @@ async function handleAccountTask(task) {
         }
     } else if (mode === 'auto_loginpay') {
         const existingOrder = db.getOrderByEmail(currentEmail);
-        orderId = existingOrder ? existingOrder.orderId : null;
-        if (!orderId) {
+        token = existingOrder ? existingOrder.orderId : null;
+        if (!token) {
             telegramHandler.updateStatusFor(chatId, `🚫 <b>ORDER NOT FOUND</b>\nTidak bisa auto poll OTP karena data email ini tak ada di riwayat bot.`);
             return;
         }
@@ -77,7 +79,7 @@ async function handleAccountTask(task) {
     if (mode.startsWith('auto_')) {
         otpFnProxy = async () => {
             logger.info(`[#${threadId}] Menunggu OTP dari LuckMail untuk ${currentEmail}...`);
-            const code = await luckMailApi.fetchVerificationCode(orderId, currentEmail);
+            const code = await luckMailApi.fetchVerificationCode(token, currentEmail);
             if (!code) throw new Error("Timeout mengambil OTP dari LuckMail");
             return code;
         };
@@ -126,7 +128,7 @@ async function handleAccountTask(task) {
                 const sRes = await signup.runSignup();
                 if (!sRes.success) {
                     logger.error(`Pendaftaran gagal: ${sRes.error}`);
-                    if (orderId) luckMailApi.cancelEmail(orderId);
+                    if (purchaseId) luckMailApi.cancelEmail(purchaseId);
                     telegramHandler.updateStatusFor(chatId, `🚫 <b>REGISTRATION FAILED</b>\n━━━━━━━━━━━━━━━━━━\n⚠️ Reason: <code>${sRes.error}</code>`);
                     return;
                 }
@@ -174,7 +176,7 @@ async function handleAccountTask(task) {
         });
     } catch (err) {
         logger.error(`Kesalahan: ${err.message}`);
-        if (orderId) luckMailApi.cancelEmail(orderId);
+        if (purchaseId) luckMailApi.cancelEmail(purchaseId);
         telegramHandler.updateStatusFor(chatId, `🔥 <b>SYSTEM CRITICAL ERROR</b>\n━━━━━━━━━━━━━━━━━━\n<code>${err.message}</code>`);
     } finally {
         try {

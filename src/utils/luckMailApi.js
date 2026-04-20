@@ -19,24 +19,26 @@ const apiClient = axios.create({
  */
 async function purchaseEmail() {
     try {
-        const response = await apiClient.post('/order/create', {
+        const response = await apiClient.post('/email/purchase', {
             project_code: "openai",
             email_type: "ms_imap",
             domain: "outlook.de",
-            specified_email: "",
+            quantity: 1,
             variant_mode: ""
         });
 
         const resData = response.data;
-        if (resData && resData.data && resData.data.order_no) {
-            const orderId = resData.data.order_no;
-            const email = resData.data.email_address;
+        if (resData && resData.data && resData.data.purchases && resData.data.purchases[0]) {
+            const purchase = resData.data.purchases[0];
+            const token = purchase.token;
+            const email = purchase.email_address;
+            const purchaseId = purchase.id;
             
-            // Simpan riwayat pembelian ke database orders.json
-            db.saveOrder(orderId, email, 'purchased');
-            logger.info(`[LuckMail] Berhasil membeli email: ${email} (Order: ${orderId})`);
+            // Simpan riwayat pembelian ke database orders.json (kita simpan token sebagai ID utilitasnya)
+            db.saveOrder(token, email, 'purchased');
+            logger.info(`[LuckMail] Berhasil membeli email: ${email} (Token: ${token}, ID: ${purchaseId})`);
             
-            return { orderId, email };
+            return { token, email, purchaseId };
         } else {
             throw new Error(resData ? resData.message || JSON.stringify(resData) : "Unknown error from LuckMail API");
         }
@@ -51,16 +53,16 @@ async function purchaseEmail() {
  * Melakukan polling tiap 2 detik, maksimal selama 20 detik (10 kali).
  * Menggunakan sistem cache OTP agar tidak mengembalikan kode OTP basi.
  * 
- * @param {string} orderId - ID dari email yang dibeli.
+ * @param {string} token - Token dari email yang dibeli.
  * @param {string} email - Alamat email (untuk mengecek last_otp cache).
  * @returns {Promise<string|null>} - Kode OTP 6-digit atau null jika timeout.
  */
-async function fetchVerificationCode(orderId, email) {
+async function fetchVerificationCode(token, email) {
     const maxRetries = 10;
     const delayMs = 2000;
     const lastOtp = db.getOtpCache(email);
 
-    logger.info(`[LuckMail] Memulai pencarian OTP untuk ${email} (Order: ${orderId})...`);
+    logger.info(`[LuckMail] Memulai pencarian OTP untuk ${email} (Token: ${token})...`);
     if (lastOtp) {
         logger.debug(`[LuckMail] Memiliki record otp sebelumnya: ${lastOtp}, akan di-ignore.`);
     }
@@ -69,7 +71,7 @@ async function fetchVerificationCode(orderId, email) {
         try {
             await new Promise(resolve => setTimeout(resolve, delayMs)); // Delay 2 detik
             
-            const response = await apiClient.get(`/order/${orderId}/code`);
+            const response = await apiClient.get(`/email/token/${token}/code`);
             
             if (response.data && response.data.data && response.data.data.verification_code) {
                 const codeRaw = response.data.data.verification_code;
@@ -108,18 +110,22 @@ async function fetchVerificationCode(orderId, email) {
 }
 
 /**
- * Membatalkan email order
- * @param {string} orderId
+ * Mengirimkan appeal karena email tidak menerima OTP
+ * @param {number|string} purchaseId
  */
-async function cancelEmail(orderId) {
+async function cancelEmail(purchaseId) {
     try {
-        const response = await apiClient.post(`/order/${orderId}/cancel`, {});
+        const response = await apiClient.post(`/appeal/create`, {
+            appeal_type: 2,
+            purchase_id: purchaseId,
+            reason: "no_code",
+        });
         if (response.data && response.data.code === 0) {
-            logger.info(`[LuckMail] Order ${orderId} berhasil dibatalkan.`);
-            db.saveOrder(orderId, "cancelled", 'cancelled');
+            logger.info(`[LuckMail] Appeal untuk purchase_id ${purchaseId} berhasil dikirim.`);
+            db.saveOrder(purchaseId, "cancelled", 'cancelled');
         }
     } catch (e) {
-        logger.debug(`[LuckMail] Gagal membatalkan order ${orderId}: ${e.message}`);
+        logger.debug(`[LuckMail] Gagal appeal purchase_id ${purchaseId}: ${e.message}`);
     }
 }
 
