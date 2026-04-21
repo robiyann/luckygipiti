@@ -7,13 +7,22 @@ const BASE_URL = "https://mails.luckyous.com/api/v1/openapi";
 
 const ALLOWED_DOMAINS = ["outlook.de", "outlook.cl", "outlook.ph"];
 
-const apiClient = axios.create({
+const apiClientOpts = {
     baseURL: BASE_URL,
     headers: {
         'X-API-Key': API_KEY,
         'Content-Type': 'application/json'
     }
-});
+};
+
+const proxyUrl = process.env.GENERAL_PROXY_URL;
+if (proxyUrl) {
+    const { HttpsProxyAgent } = require('https-proxy-agent');
+    apiClientOpts.httpsAgent = new HttpsProxyAgent(proxyUrl);
+    apiClientOpts.proxy = false; // Disable axios default proxy handling
+}
+
+const apiClient = axios.create(apiClientOpts);
 
 /**
  * Membeli slot email baru dari LuckMail (Random Outlook Domain)
