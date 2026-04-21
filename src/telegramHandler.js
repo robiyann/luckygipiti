@@ -587,6 +587,7 @@ async function sendAccountJsonFile(chatId, results) {
         const filePath = path.join(process.cwd(), fileName);
 
         const formattedData = {};
+        let plusCount = 0;
         results.forEach(acc => {
             // Hanya masukkan akun yang BERHASIL PLUS ke dalam JSON report agar tidak nyampah
             if (acc && acc.email && acc.accountType === 'Plus') {
@@ -596,8 +597,14 @@ async function sendAccountJsonFile(chatId, results) {
                     accountType: acc.accountType || 'Plus',
                     accessToken: acc.accessToken || null
                 };
+                plusCount++;
             }
         });
+
+        if (plusCount === 0) {
+            logger.info(`[Bot] Tidak ada akun Plus dalam batch ini. Skip kirim JSON file.`);
+            return;
+        }
 
         fs.writeFileSync(filePath, JSON.stringify(formattedData, null, 2));
 
@@ -833,5 +840,6 @@ module.exports = {
     handleTaskResult,
     setRestartCallback,
     stopTelegram,
-    asyncLocalStorage
+    asyncLocalStorage,
+    getUserState
 };
