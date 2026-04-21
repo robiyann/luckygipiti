@@ -66,6 +66,10 @@ async function handleAccountTask(task) {
         }
     }
 
+    if (!currentEmail && (mode === 'signup' || mode === 'autopay' || mode === 'auto_signup' || mode === 'auto_autopay')) {
+        currentEmail = luckMailApi.generateEmail();
+    }
+
     telegramHandler.updateStatusFor(chatId, `🚀 <b>Initializing Task...</b>`, { email: currentEmail || email, mode, name });
 
     logger.account(currentEmail || email);
@@ -76,7 +80,7 @@ async function handleAccountTask(task) {
     let activeSlot = null;
 
     // --- GOPAY POOL CLAIM ---
-    const isAutopayMode = mode.includes('autopay') || mode.includes('autopay'); // simple check
+    const isAutopayMode = mode.includes('autopay'); 
     if (otpServerUrl && isAutopayMode) {
         logger.info(`[Pool] Mencari slot GoPay yang tersedia...`);
         const maxPoolAttempts = 300; // 10 menit (300 * 2s)
@@ -91,7 +95,7 @@ async function handleAccountTask(task) {
             await new Promise(r => setTimeout(r, 2000)); // Cek tiap 2 detik
         }
         if (!activeSlot) {
-            telegramHandler.updateStatusFor(chatId, `🚫 <b>POOL ERROR</b>\nSiistem pembayaran tidak dapat mengambil slot GoPay dari server. Harap hubungi admin.`);
+            telegramHandler.updateStatusFor(chatId, `🚫 <b>POOL ERROR</b>\nSistem pembayaran sedang sibuk. Harap coba lagi nanti.`);
             const localCycleTLS = await initCycleTLS();
             await localCycleTLS.exit().catch(()=>{});
             return { success: false, error: "GoPay Pool Mandatory but Unavailable" };
@@ -108,7 +112,7 @@ async function handleAccountTask(task) {
     const finalWebhook = activeSlot ? activeSlot.webhook_action : 'reset-link';
 
     if (isAutopayMode && !finalGopayPhone) {
-        telegramHandler.updateStatusFor(chatId, `⚠️ <b>SYSTEM ERROR</b>\nGoPay Pool tidak terkonfigurasi. Autopay dibatalkan.`);
+        telegramHandler.updateStatusFor(chatId, `⚠️ <b>SYSTEM ERROR</b>\nGoPay Pool tidak terkonfigurasi.`);
         await localCycleTLS.exit().catch(()=>{});
         return { success: false, error: "Missing Pool Data" };
     }
@@ -137,7 +141,7 @@ async function handleAccountTask(task) {
                 const acc = db.getAccount(currentEmail);
                 if (!acc || !acc.accessToken) {
                     telegramHandler.updateStatusFor(chatId, `⚠️ <b>SESSION EXPIRED</b>\nData akun atau Access Token tidak (lagi) tersedia di database.`);
-                    if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
+                    if (activeSlot) releaseGopaySlot(otpServerUrl, activeSlot.id).catch(()=>{});
                     return;
                 }
                 
@@ -154,12 +158,12 @@ async function handleAccountTask(task) {
                 telegramHandler.updateStatusFor(chatId, `💳 <b>Retrying Payment...</b>\n<i>Bypassing login via cached token...</i>`);
                 const aRes = await autopay.runAutopay();
                 
-                // Handle Pool Cleanup
+                // Handle Pool Cleanup (Non-blocking)
                 if (activeSlot) {
                     if (aRes.success) {
-                        await waitForGopayReset(otpServerUrl, finalServerNum);
+                        waitForGopayReset(otpServerUrl, finalServerNum).catch(e => logger.error(`[Pool] Reset failed: ${e.message}`));
                     } else {
-                        await releaseGopaySlot(otpServerUrl, activeSlot.id);
+                        releaseGopaySlot(otpServerUrl, activeSlot.id).catch(()=>{});
                     }
                 }
 
@@ -222,12 +226,12 @@ async function handleAccountTask(task) {
                     telegramHandler.updateStatusFor(chatId, `💳 <b>Initiating Payment...</b>\n<i>Processing GoPay transaction...</i>`);
                     const aRes = await autopay.runAutopay();
 
-                    // Handle Pool Cleanup
+                    // Handle Pool Cleanup (Non-blocking)
                     if (activeSlot) {
                         if (aRes.success) {
-                            await waitForGopayReset(otpServerUrl, finalServerNum);
+                            waitForGopayReset(otpServerUrl, finalServerNum).catch(e => logger.error(`[Pool] Reset failed: ${e.message}`));
                         } else {
-                            await releaseGopaySlot(otpServerUrl, activeSlot.id);
+                            releaseGopaySlot(otpServerUrl, activeSlot.id).catch(()=>{});
                         }
                     }
 
@@ -256,12 +260,12 @@ async function handleAccountTask(task) {
                 telegramHandler.updateStatusFor(chatId, `🔑 <b>Authenticating...</b>\n<i>Checking account credentials...</i>`);
                 const aRes = await autopay.runAutopay();
 
-                // Handle Pool Cleanup
+                // Handle Pool Cleanup (Non-blocking)
                 if (activeSlot) {
                     if (aRes.success) {
-                        await waitForGopayReset(otpServerUrl, finalServerNum);
+                        waitForGopayReset(otpServerUrl, finalServerNum).catch(e => logger.error(`[Pool] Reset failed: ${e.message}`));
                     } else {
-                        await releaseGopaySlot(otpServerUrl, activeSlot.id);
+                        releaseGopaySlot(otpServerUrl, activeSlot.id).catch(()=>{});
                     }
                 }
 
