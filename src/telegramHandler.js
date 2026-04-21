@@ -594,8 +594,7 @@ async function sendAccountJsonFile(chatId, results) {
                 formattedData[acc.email] = {
                     email: acc.email,
                     password: acc.password || 'N/A',
-                    accountType: acc.accountType || 'Plus',
-                    accessToken: acc.accessToken || null
+                    accountType: acc.accountType || 'Plus'
                 };
                 plusCount++;
             }
