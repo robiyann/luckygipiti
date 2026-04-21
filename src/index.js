@@ -1,5 +1,5 @@
 require("dotenv").config();
-require('events').EventEmitter.defaultMaxListeners = 30; // Fix: multi-worker concurrent socket listeners
+require('events').EventEmitter.defaultMaxListeners = 50; // Fix: multi-worker concurrent socket listeners
 const fs = require("fs");
 const path = require("path");
 const chalk = require("chalk");
@@ -9,7 +9,7 @@ const { generateRandomName, generateRandomBirthday } = require("./utils/emailGen
 const initCycleTLS = require("cycletls");
 const logger = require("./utils/logger");
 const luckMailApi = require("./utils/luckMailApi");
-const { claimGopaySlot, releaseGopaySlot, triggerMacrodroidWebhook } = require("./utils/gopayOtpFetcher");
+const { claimGopaySlot, releaseGopaySlot, triggerMacrodroidWebhook, resetAllGopaySlots } = require("./utils/gopayOtpFetcher");
 
 const db = require("./db");
 const workerPool = require("./workerPool");
@@ -386,6 +386,12 @@ async function main() {
     // Initialize Telegram Bot 
     telegramHandler.initTelegram();
 
+    // Reset semua slot GoPay ke available (recovery dari crash/restart sebelumnya)
+    const otpServerUrl = process.env.OTP_SERVER_URL;
+    if (otpServerUrl) {
+        await resetAllGopaySlots(otpServerUrl);
+    }
+
     // Logger info can remain global, but status updates are per-chat so we don't bind global logger to telegram status
     // Telegram will just log general errors to console
     logger.info('🛰️  <b>SYSTEM ONLINE</b>\nBot siap menerima request multi-user...');
@@ -400,11 +406,15 @@ telegramHandler.setRestartCallback(() => {
 process.on('SIGINT', async () => {
     logger.info("Menerima sinyal interupsi (Ctrl+C). Menutup sistem...");
     telegramHandler.stopTelegram();
+    const otpUrl = process.env.OTP_SERVER_URL;
+    if (otpUrl) await resetAllGopaySlots(otpUrl).catch(() => {});
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
     telegramHandler.stopTelegram();
+    const otpUrl = process.env.OTP_SERVER_URL;
+    if (otpUrl) await resetAllGopaySlots(otpUrl).catch(() => {});
     process.exit(0);
 });
 

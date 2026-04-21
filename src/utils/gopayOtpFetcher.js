@@ -118,10 +118,25 @@ async function releaseGopaySlot(serverUrl, slotId) {
     }
 }
 
+/**
+ * Reset SEMUA slot ke available (dipanggil saat bot startup/restart)
+ */
+async function resetAllGopaySlots(serverUrl) {
+    try {
+        const res = await axios.get(`${serverUrl}/gopay/reset-all`, { timeout: 5000 });
+        logger.info(`[Pool] Startup reset: semua slot dikembalikan ke available.`);
+        return res.data;
+    } catch (err) {
+        logger.warn(`[Pool] Startup reset gagal: ${err.message}`);
+        return null;
+    }
+}
+
 module.exports = { 
     fetchGopayOtp, 
     triggerMacrodroidWebhook, 
     waitForGopayReset,
     claimGopaySlot,
-    releaseGopaySlot
+    releaseGopaySlot,
+    resetAllGopaySlots
 };
