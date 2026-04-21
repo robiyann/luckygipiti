@@ -588,13 +588,13 @@ async function sendAccountJsonFile(chatId, results) {
 
         const formattedData = {};
         results.forEach(acc => {
-            if (acc && acc.email) {
+            // Hanya masukkan akun yang BERHASIL PLUS ke dalam JSON report agar tidak nyampah
+            if (acc && acc.email && acc.accountType === 'Plus') {
                 formattedData[acc.email] = {
                     email: acc.email,
                     password: acc.password || 'N/A',
-                    accountType: acc.accountType || 'Free',
-                    accessToken: acc.accessToken || null,
-                    error: acc.error || null
+                    accountType: acc.accountType || 'Plus',
+                    accessToken: acc.accessToken || null
                 };
             }
         });
@@ -653,10 +653,23 @@ async function checkAndSendBatchReport(chatId) {
     if (state.isBatchMode && state.batchCompleted >= state.batchTarget && state.batchTarget > 0) {
         // Ambil data hasil dan segera reset state agar tidak kepanggil dobel
         const results = [...state.batchResults];
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.length - successCount;
+
         state.isBatchMode = false;
         state.batchResults = [];
         state.batchTarget = 0;
         state.batchCompleted = 0;
+
+        // Kirim ringkasan batch
+        const summaryMsg = `📊 <b>BATCH COMPLETED</b>\n` +
+                         `━━━━━━━━━━━━━━━━━━\n` +
+                         `✅ Success : <b>${successCount} (PLUS)</b>\n` +
+                         `❌ Failed  : <b>${failCount}</b>\n` +
+                         `📦 Total   : <b>${results.length}</b>\n\n` +
+                         `<i>File JSON hanya berisi akun yang berhasil PLUS. Menyiapkan laporan...</i>`;
+        
+        bot.sendMessage(chatId, summaryMsg, { parse_mode: 'HTML' });
 
         // Beri jeda sedikit agar dashboard status FINISHED terkirim duluan
         setTimeout(() => sendAccountJsonFile(chatId, results), 2500);

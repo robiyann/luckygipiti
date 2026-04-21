@@ -327,12 +327,18 @@ async function handleAccountTask(task) {
 }
 
 async function handleAutopayResult(chatId, email, password, aRes) {
+    const state = telegramHandler.getUserState(chatId);
     if (aRes.success) {
         logger.success(`Autopay sukses untuk ${email}`);
         
         // Update DB Account to Plus
         const acc = db.getAccount(email);
         if (acc) db.saveAccount(email, { accountType: 'Plus' });
+
+        // Jika dalam mode batch, jangan kirim pesan PREMIUM ACTIVATED per-akun agar tidak nyampah
+        if (state && state.isBatchMode) {
+            return;
+        }
 
         telegramHandler.updateStatusFor(chatId,
             `🎉 <b>PREMIUM ACTIVATED!</b>\n` +
