@@ -1583,8 +1583,9 @@ class ChatGPTAutopay {
         // _retryLinkCount tracks how many times we've retried AFTER reset.
         // Webhook is only triggered ONCE (on first conflict). Subsequent retries
         // just wait longer, giving Midtrans backend time to sync with GoPay unlink.
-        const MAX_LINK_RETRIES = 3;
-        const RETRY_DELAYS = [5000, 8000, 12000]; // ms per attempt
+        // just wait longer, giving Midtrans backend time to sync with GoPay unlink.
+        const MAX_LINK_RETRIES = 4;
+        const RETRY_DELAYS = [8000, 12000, 15000, 15000]; // ms per attempt
 
         if (typeof this._retryLinkCount === 'undefined') {
             this._retryLinkCount = 0;
