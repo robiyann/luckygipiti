@@ -244,6 +244,8 @@ class ChatGPTAutopay {
     this.otpConfig = { provider: "manual" };
     this.gopayPhone = a.gopayPhone;
     this.gopayPin = a.gopayPin;
+    this.serverNumber = a.serverNumber || '1';
+    this.webhookAction = a.webhookAction || 'reset-link';
     this.skipOtp = a.skipOtp || ![];
     this.skipLogin = a.skipLogin || ![];
     this.koreaProxyUrl = process.env.KOREA_PROXY_URL || null;
@@ -1657,7 +1659,7 @@ class ChatGPTAutopay {
     const otpServerUrl = process.env.OTP_SERVER_URL;
     if (otpServerUrl && this.gopayPhone) {
       logger.info(this.tag + "[Auto OTP] Polling GoPay OTP dari server...");
-      b = await fetchGopayOtp(this.gopayPhone, otpServerUrl);
+      b = await fetchGopayOtp(this.gopayPhone, otpServerUrl, this.serverNumber);
     } else {
       b = await getUserInput("Masukkan kode GoPay dari WhatsApp: ");
     }
@@ -2022,8 +2024,8 @@ class ChatGPTAutopay {
           // Wajib Hit Webhook sampai Sukses (Retry 5x)
           for (let retry = 0; retry < 5; retry++) {
             try {
-               logger.info(this.tag + `Trigger MacroDroid reset-link (attempt ${retry+1}/5)...`);
-               await triggerMacrodroidWebhook(otpServerUrlFinal, 'reset-link');
+               logger.info(this.tag + `Trigger MacroDroid ${this.webhookAction} (attempt ${retry+1}/5)...`);
+               await triggerMacrodroidWebhook(otpServerUrlFinal, this.webhookAction);
                break; 
             } catch (e) {
                logger.warn(this.tag + `Trigger failed: ${e.message}. Retrying...`);

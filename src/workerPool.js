@@ -71,15 +71,9 @@ async function tryStart() {
         return;
     }
 
-    // CARI TASK PERTAMA di queue yang userId-nya SEDANG TIDAK AKTIF
-    const taskIndex = globalQueue.findIndex(t => {
-        const uid = t.userId.toString();
-        // Cek apakah ada slot aktif yang memiliki userId ini
-        for (const slot of activeSlots.values()) {
-            if (slot.userId === uid) return false; // User sedang sibuk, skip task ini dulu
-        }
-        return true; // User ini bebas, ambil task-nya
-    });
+    // Ambil task pertama di antrean (FIFO), siapapun user-nya (Full Concurrency ON)
+    // Sekarang 1 user bisa menjalankan banyak task berbarengan sebanyak jumlah slot MAX_SLOTS
+    const taskIndex = 0;
 
     if (taskIndex === -1) {
         // Semua task di antrian milik user yang sedang aktif running task lain

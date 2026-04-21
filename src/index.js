@@ -8,6 +8,7 @@ const { generateRandomName, generateRandomBirthday } = require("./utils/emailGen
 const initCycleTLS = require("cycletls");
 const logger = require("./utils/logger");
 const luckMailApi = require("./utils/luckMailApi");
+const { claimGopaySlot, releaseGopaySlot, waitForGopayReset, triggerMacrodroidWebhook } = require("./utils/gopayOtpFetcher");
 
 const db = require("./db");
 const workerPool = require("./workerPool");
@@ -28,7 +29,7 @@ async function handleAccountTask(task) {
         return;
     }
 
-    const { password, gopayPhone, gopayPin } = userData;
+    const { password } = userData;
     const threadId = Math.floor(Math.random() * 900) + 100;
 
     const modeName = {
@@ -71,8 +72,46 @@ async function handleAccountTask(task) {
     logger.info(`Mode: ${modeName} - User: ${userId}`);
     logger.info(`Menginisialisasi engine...`);
 
+    const otpServerUrl = process.env.OTP_SERVER_URL;
+    let activeSlot = null;
+
+    // --- GOPAY POOL CLAIM ---
+    const isAutopayMode = mode.includes('autopay') || mode.includes('autopay'); // simple check
+    if (otpServerUrl && isAutopayMode) {
+        logger.info(`[Pool] Mencari slot GoPay yang tersedia...`);
+        const maxPoolAttempts = 300; // 10 menit (300 * 2s)
+        for (let i = 0; i < maxPoolAttempts; i++) {
+            activeSlot = await claimGopaySlot(otpServerUrl);
+            if (activeSlot) {
+                logger.success(`[Pool] Berhasil mengunci Slot #${activeSlot.id} (${activeSlot.phone})`);
+                break;
+            }
+            // Update status tiap 10 detik (i kelipatan 5 karena 5 * 2s = 10s)
+            if (i % 5 === 0) telegramHandler.updateStatusFor(chatId, `⌛ <b>Menunggu Slot GoPay...</b>\nSemua nomor sedang digunakan. Antri otomatis...`);
+            await new Promise(r => setTimeout(r, 2000)); // Cek tiap 2 detik
+        }
+        if (!activeSlot) {
+            telegramHandler.updateStatusFor(chatId, `🚫 <b>POOL ERROR</b>\nSiistem pembayaran tidak dapat mengambil slot GoPay dari server. Harap hubungi admin.`);
+            const localCycleTLS = await initCycleTLS();
+            await localCycleTLS.exit().catch(()=>{});
+            return { success: false, error: "GoPay Pool Mandatory but Unavailable" };
+        }
+    }
+
     // In multi-user context, we create a fresh CycleTLS instance for this run
     const localCycleTLS = await initCycleTLS();
+    
+    // FORCED POOL LOGIC: Always use slot data, no fallback to user profile
+    const finalGopayPhone = activeSlot ? activeSlot.phone : null;
+    const finalGopayPin = activeSlot ? activeSlot.pin : null;
+    const finalServerNum = activeSlot ? String(activeSlot.id) : '1';
+    const finalWebhook = activeSlot ? activeSlot.webhook_action : 'reset-link';
+
+    if (isAutopayMode && !finalGopayPhone) {
+        telegramHandler.updateStatusFor(chatId, `⚠️ <b>SYSTEM ERROR</b>\nGoPay Pool tidak terkonfigurasi. Autopay dibatalkan.`);
+        await localCycleTLS.exit().catch(()=>{});
+        return { success: false, error: "Missing Pool Data" };
+    }
 
     // Proxy OTP function based on mode
     let otpFnProxy;
@@ -98,11 +137,14 @@ async function handleAccountTask(task) {
                 const acc = db.getAccount(currentEmail);
                 if (!acc || !acc.accessToken) {
                     telegramHandler.updateStatusFor(chatId, `⚠️ <b>SESSION EXPIRED</b>\nData akun atau Access Token tidak (lagi) tersedia di database.`);
+                    if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
                     return;
                 }
                 
                 const autopay = new ChatGPTAutopay({
-                    email: currentEmail, password, name, gopayPhone, gopayPin,
+                    email: currentEmail, password, name, 
+                    gopayPhone: finalGopayPhone, gopayPin: finalGopayPin,
+                    serverNumber: finalServerNum, webhookAction: finalWebhook,
                     threadId, sharedCycleTLS: localCycleTLS,
                     accessToken: acc.accessToken,
                     skipLogin: true,
@@ -111,6 +153,16 @@ async function handleAccountTask(task) {
 
                 telegramHandler.updateStatusFor(chatId, `💳 <b>Retrying Payment...</b>\n<i>Bypassing login via cached token...</i>`);
                 const aRes = await autopay.runAutopay();
+                
+                // Handle Pool Cleanup
+                if (activeSlot) {
+                    if (aRes.success) {
+                        await waitForGopayReset(otpServerUrl, finalServerNum);
+                    } else {
+                        await releaseGopaySlot(otpServerUrl, activeSlot.id);
+                    }
+                }
+
                 await handleAutopayResult(chatId, currentEmail, password, aRes);
                 return aRes;
             } else if (mode === 'signup' || mode === 'autopay' || mode === 'auto_signup' || mode === 'auto_autopay') {
@@ -129,6 +181,7 @@ async function handleAccountTask(task) {
                 if (!sRes.success) {
                     logger.error(`Pendaftaran gagal: ${sRes.error}`);
                     if (purchaseId) luckMailApi.cancelEmail(purchaseId);
+                    if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
                     telegramHandler.updateStatusFor(chatId, `🚫 <b>REGISTRATION FAILED</b>\n━━━━━━━━━━━━━━━━━━\n⚠️ Reason: <code>${sRes.error}</code>`);
                     return { success: false, email: currentEmail, error: sRes.error };
                 }
@@ -150,13 +203,16 @@ async function handleAccountTask(task) {
 
                 if (mode === 'autopay' || mode === 'auto_autopay') {
                     logger.info(`Proses pembayaran GoPay...`);
-                    if (!gopayPhone || !gopayPin) {
-                        telegramHandler.updateStatusFor(chatId, `⚠️ <b>GOPAY NOT CONFIGURED</b>\nRegistration success, but payment was skipped.`);
-                        return { success: true, email: currentEmail, password, accountType: 'Free', error: "GoPay Not Configured" };
+                    // activeSlot is now mandatory
+                    if (!activeSlot) {
+                        telegramHandler.updateStatusFor(chatId, `⚠️ <b>POOL SIBUK</b>\nRegistrasi berhasil, tapi slot GoPay tidak tersedia. Silakan lakukan Retry Autopay nanti.`);
+                        return { success: true, email: currentEmail, password, accountType: 'Free', error: "GoPay Pool Not Available" };
                     }
 
                     const autopay = new ChatGPTAutopay({
-                        email: currentEmail, password, name, gopayPhone, gopayPin,
+                        email: currentEmail, password, name, 
+                        gopayPhone: finalGopayPhone, gopayPin: finalGopayPin,
+                        serverNumber: finalServerNum, webhookAction: finalWebhook,
                         threadId, sharedCycleTLS: localCycleTLS,
                         accessToken: sRes.accessToken,
                         skipLogin: true,
@@ -165,27 +221,50 @@ async function handleAccountTask(task) {
 
                     telegramHandler.updateStatusFor(chatId, `💳 <b>Initiating Payment...</b>\n<i>Processing GoPay transaction...</i>`);
                     const aRes = await autopay.runAutopay();
+
+                    // Handle Pool Cleanup
+                    if (activeSlot) {
+                        if (aRes.success) {
+                            await waitForGopayReset(otpServerUrl, finalServerNum);
+                        } else {
+                            await releaseGopaySlot(otpServerUrl, activeSlot.id);
+                        }
+                    }
+
                     await handleAutopayResult(chatId, currentEmail, password, aRes);
                     return aRes;
                 } else {
+                    if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
                     telegramHandler.updateStatusFor(chatId, `✅ <b>REGISTRATION SUCCESS</b>\n━━━━━━━━━━━━━━━━━━\n📧 Email: <code>${currentEmail}</code>\n🔑 Password: <code>${password}</code>\n💎 Mode: <b>Signup Only</b>`);
                     return { success: true, email: currentEmail, password, accountType: 'Free' };
                 }
             } else if (mode === 'login_autopay' || mode === 'auto_loginpay') {
                 logger.info(`Proses Login + Autopay...`);
-                if (!gopayPhone || !gopayPin) {
-                    telegramHandler.updateStatusFor(chatId, `⚠️ <b>GOPAY NOT CONFIGURED</b>\nLogin cancelled due to missing payment info.`);
-                    return { success: false, email: currentEmail, error: "GoPay Not Configured" };
+                if (!activeSlot) {
+                    telegramHandler.updateStatusFor(chatId, `⚠️ <b>POOL SIBUK</b>\nAutopay tidak dapat dilanjutkan karena slot GoPay tidak tersedia.`);
+                    return { success: false, error: "GoPay Pool Not Available" };
                 }
 
                 const autopay = new ChatGPTAutopay({
-                    email: currentEmail, password, name, gopayPhone, gopayPin,
+                    email: currentEmail, password, name, 
+                    gopayPhone: finalGopayPhone, gopayPin: finalGopayPin,
+                    serverNumber: finalServerNum, webhookAction: finalWebhook,
                     threadId, sharedCycleTLS: localCycleTLS,
                     otpFn: otpFnProxy
                 });
 
                 telegramHandler.updateStatusFor(chatId, `🔑 <b>Authenticating...</b>\n<i>Checking account credentials...</i>`);
                 const aRes = await autopay.runAutopay();
+
+                // Handle Pool Cleanup
+                if (activeSlot) {
+                    if (aRes.success) {
+                        await waitForGopayReset(otpServerUrl, finalServerNum);
+                    } else {
+                        await releaseGopaySlot(otpServerUrl, activeSlot.id);
+                    }
+                }
+
                 await handleAutopayResult(chatId, currentEmail, password, aRes);
                 return aRes;
             }
@@ -194,6 +273,7 @@ async function handleAccountTask(task) {
     } catch (err) {
         logger.error(`Kesalahan: ${err.message}`);
         if (purchaseId) luckMailApi.cancelEmail(purchaseId);
+        if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(()=>{});
         telegramHandler.updateStatusFor(chatId, `🔥 <b>SYSTEM CRITICAL ERROR</b>\n━━━━━━━━━━━━━━━━━━\n<code>${err.message}</code>`);
         return { success: false, email: currentEmail, error: err.message };
     } finally {
