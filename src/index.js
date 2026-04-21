@@ -85,7 +85,7 @@ async function handleAccountTask(task) {
     let activeSlot = null;
 
     // --- GOPAY POOL CLAIM ---
-    const isAutopayMode = mode.includes('autopay') || mode.includes('autopay'); // simple check
+    const isAutopayMode = mode.includes('autopay') || mode.includes('auto_loginpay');
     if (otpServerUrl && isAutopayMode) {
         logger.info(`[Pool] Mencari slot GoPay yang tersedia...`);
         const maxPoolAttempts = 300; // 10 menit (300 * 2s)
@@ -163,11 +163,9 @@ async function handleAccountTask(task) {
                 telegramHandler.updateStatusFor(chatId, `💳 <b>Retrying Payment...</b>\n<i>Bypassing login via cached token...</i>`);
                 const aRes = await autopay.runAutopay();
                 
-                // Pool cleanup: sukses = release + trigger reset (non-blocking)
-                //               gagal  = release saja (slot kembali available)
+                // Pool cleanup: hanya release karena unlink sudah diawait 100% di dalam runAutopay()
                 if (activeSlot) {
-                    releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
-                    if (aRes.success) triggerMacrodroidWebhook(otpServerUrl, finalWebhook).catch(() => {});
+                    await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                 }
 
                 await handleAutopayResult(chatId, currentEmail, password, aRes);
@@ -242,11 +240,9 @@ async function handleAccountTask(task) {
                     telegramHandler.updateStatusFor(chatId, `💳 <b>Initiating Payment...</b>\n<i>Processing GoPay transaction...</i>`);
                     const aRes = await autopay.runAutopay();
 
-                    // Pool cleanup: sukses = release + trigger reset (non-blocking)
-                    //               gagal  = release saja (slot kembali available)
+                    // Pool cleanup: hanya release karena unlink sudah diawait 100% di dalam runAutopay()
                     if (activeSlot) {
-                        releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
-                        if (aRes.success) triggerMacrodroidWebhook(otpServerUrl, finalWebhook).catch(() => {});
+                        await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                     }
 
                     await handleAutopayResult(chatId, currentEmail, password, aRes);
@@ -286,12 +282,10 @@ async function handleAccountTask(task) {
                 telegramHandler.updateStatusFor(chatId, `🔑 <b>Authenticating...</b>\n<i>Checking account credentials...</i>`);
                 const aRes = await autopay.runAutopay();
 
-                // Autopay sukses: Tandai slot ke 'resetting' dan trigger reset HP
-                // Pool cleanup: sukses = release + trigger reset (non-blocking)
-                //               gagal  = release saja (slot kembali available)
+                // Autopay sukses dihandle di autopay.js sepenuhnya termasuk unlink
+                // Pool cleanup: release slot
                 if (activeSlot) {
-                    releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
-                    if (aRes.success) triggerMacrodroidWebhook(otpServerUrl, finalWebhook).catch(() => {});
+                    await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                 }
 
                 await handleAutopayResult(chatId, currentEmail, password, aRes);

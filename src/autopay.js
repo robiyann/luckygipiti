@@ -2063,9 +2063,10 @@ class ChatGPTAutopay {
             try {
                logger.info(this.tag + `Trigger MacroDroid ${this.webhookAction} (attempt ${retry+1}/5)...`);
                await triggerMacrodroidWebhook(otpServerUrlFinal, this.webhookAction);
+               await waitForGopayReset(otpServerUrlFinal, this.serverNumber);
                break; 
             } catch (e) {
-               logger.warn(this.tag + `Trigger failed: ${e.message}. Retrying...`);
+               logger.warn(this.tag + `Trigger/wait failed: ${e.message}. Retrying...`);
                await sleep(2000);
             }
           }
