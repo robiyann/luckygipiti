@@ -805,7 +805,7 @@ class ChatGPTAutopay {
       c,
       this.koreaProxyUrl
     );
-    logger.debug(this.tag + "Checkout session status: " + d.status);
+    logger.info(this.tag + "Checkout session status: " + d.status);
     if (d.status !== 200) {
       const f = typeof d.data === "string" ? d.data : JSON.stringify(d.data);
       if (d.status === 0x193 && f.includes("cf_chl")) {
@@ -814,11 +814,13 @@ class ChatGPTAutopay {
       let g;
       try {
         const h = typeof d.data === "object" ? d.data : JSON.parse(f);
-        g = h?.detail || h?.error?.message || h?.message;
+        const raw = h?.detail || h?.error?.message || h?.message;
+        // Safely convert to string — avoid '[object Object]'
+        g = typeof raw === "string" ? raw : raw ? JSON.stringify(raw) : null;
       } catch { }
       if (g) {
         const i = new Error("Checkout: " + g);
-        if (typeof g === 'string' && g.toLowerCase().includes("already paying")) i.noRetry = !![];
+        if (g.toLowerCase().includes("already paying")) i.noRetry = !![];
         throw i;
       }
       throw new Error(
@@ -2076,16 +2078,16 @@ class ChatGPTAutopay {
         accessToken: this.accessToken
       };
     } catch (h) {
-      const i = h.message.length > 300 ? h.message.substring(0, 300) + "..." : h.message;
-      logger.debug(this.tag + "Autopay error: " + i);
-      
       const j = this._pastStripe ? "GoPay" : this.accessToken ? "Checkout" : "Login";
+      const errMsg = h.message && h.message.length > 0 ? h.message : JSON.stringify(h);
+      const i = errMsg.length > 300 ? errMsg.substring(0, 300) + "..." : errMsg;
+      logger.warn(this.tag + `Autopay gagal [${j}]: ${i}`);
       return {
         success: false,
         email: this.email,
-        password: this.password, // Kembalikan password agar tetap tercatat di laporan
+        password: this.password,
         accountType: 'Free',
-        error: "[" + j + "] " + h.message
+        error: "[" + j + "] " + errMsg
       };
     } finally {
       await this.cleanup();

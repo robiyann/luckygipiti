@@ -271,7 +271,7 @@ class ChatGPTSignup {
       const c = b.data
         ? JSON.stringify(b.data).substring(0x0, 0xc8)
         : "no response body";
-      logger.debug(this.tag + "Create failed (" + b.status + "): " + c);
+      logger.warn(this.tag + "Create account failed (" + b.status + "): " + c);
     }
     return b;
   }

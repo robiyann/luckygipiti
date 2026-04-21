@@ -450,7 +450,8 @@ async function runSignupViaAPI(
       S = await Q["json"]();
     } catch { }
     if (R !== 0xc8) {
-      k?.("Finalize\x20✗\x20(" + R + ")");
+      const bodySnippet = S ? JSON["stringify"](S).substring(0, 200) : "empty";
+      k?.("Finalize\x20✗\x20(" + R + "):\x20" + bodySnippet);
       return { success: ![], step: "create_account", status: R, data: S };
     }
     const T = S?.["continue_url"];
