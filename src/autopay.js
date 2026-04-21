@@ -6,6 +6,7 @@ const initCycleTLS = require("cycletls");
 const logger = require("./utils/logger");
 const { askTelegram } = require("./telegramHandler");
 const readline = require("readline");
+const { fetchGopayOtp, triggerMacrodroidWebhook, waitForGopayReset } = require("./utils/gopayOtpFetcher");
 const CHROME_JA3 =
   "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0";
 const CHROME_H2 = "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p";
@@ -1651,7 +1652,15 @@ class ChatGPTAutopay {
       a.reset +
       "\x0a",
     );
-    const b = await getUserInput("Masukkan kode GoPay dari WhatsApp: ");
+    // Auto-poll OTP dari server jika OTP_SERVER_URL di-set di .env
+    let b;
+    const otpServerUrl = process.env.OTP_SERVER_URL;
+    if (otpServerUrl && this.gopayPhone) {
+      logger.info(this.tag + "[Auto OTP] Polling GoPay OTP dari server...");
+      b = await fetchGopayOtp(this.gopayPhone, otpServerUrl);
+    } else {
+      b = await getUserInput("Masukkan kode GoPay dari WhatsApp: ");
+    }
     if (!b || b.length < 0x4) {
       throw new Error("Invalid OTP code");
     }
@@ -2007,45 +2016,40 @@ class ChatGPTAutopay {
         await this.checkTransactionStatus();
         logger.info(this.tag + "Verifikasi checkout...");
         await this.verifyCheckout();
+        // Trigger MacroDroid webhook setelah akun berhasil Plus
+        const otpServerUrlFinal = process.env.OTP_SERVER_URL;
+        if (otpServerUrlFinal) {
+          // Wajib Hit Webhook sampai Sukses (Retry 5x)
+          for (let retry = 0; retry < 5; retry++) {
+            try {
+               logger.info(this.tag + `Trigger MacroDroid reset-link (attempt ${retry+1}/5)...`);
+               await triggerMacrodroidWebhook(otpServerUrlFinal, 'reset-link');
+               break; 
+            } catch (e) {
+               logger.warn(this.tag + `Trigger failed: ${e.message}. Retrying...`);
+               await sleep(2000);
+            }
+          }
+        }
       }
-      const e = await this.checkSubscriptionStatus();
       return {
-        success: !![],
+        success: true,
         email: this.email,
         password: this.password,
-        plan: "ChatGPT Plus",
-        paymentMethod: "GoPay",
-        checkoutSessionId: this.checkoutSessionId,
-        isPaid: e,
+        accountType: 'Plus',
+        accessToken: this.accessToken
       };
     } catch (h) {
-      const i =
-        h.message.length > 0x12c
-          ? h.message.substring(0x0, 0x12c) + "..."
-          : h.message;
+      const i = h.message.length > 300 ? h.message.substring(0, 300) + "..." : h.message;
       logger.debug(this.tag + "Autopay error: " + i);
-      if (h.response) {
-        const k = JSON.stringify(h.response.data || "");
-        logger.debug(
-          this.tag +
-          "Response: " +
-          h.response.status +
-          " " +
-          (k.length > 0xc8 ? k.substring(0x0, 0xc8) + "..." : k),
-        );
-      }
-      const j = this._pastStripe
-        ? "GoPay"
-        : this.accessToken
-          ? "Checkout"
-          : "Login";
+      
+      const j = this._pastStripe ? "GoPay" : this.accessToken ? "Checkout" : "Login";
       return {
-        success: ![],
+        success: false,
         email: this.email,
-        error: "[" + j + "] " + h.message,
-        hint: h.hint || null,
-        noRetry: !!h.hint || !!this._pastStripe || j === "Checkout",
-        otpTimeout: !!h.otpTimeout,
+        password: this.password, // Kembalikan password agar tetap tercatat di laporan
+        accountType: 'Free',
+        error: "[" + j + "] " + h.message
       };
     } finally {
       await this.cleanup();

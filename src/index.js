@@ -91,7 +91,7 @@ async function handleAccountTask(task) {
     }
 
     try {
-        await telegramHandler.asyncLocalStorage.run(chatId, async () => {
+        const result = await telegramHandler.asyncLocalStorage.run(chatId, async () => {
             if (mode === 'retry_autopay') {
                 logger.info(`Proses Retry Autopay...`);
                 // Load account detail from db
@@ -112,7 +112,7 @@ async function handleAccountTask(task) {
                 telegramHandler.updateStatusFor(chatId, `💳 <b>Retrying Payment...</b>\n<i>Bypassing login via cached token...</i>`);
                 const aRes = await autopay.runAutopay();
                 await handleAutopayResult(chatId, currentEmail, password, aRes);
-
+                return aRes;
             } else if (mode === 'signup' || mode === 'autopay' || mode === 'auto_signup' || mode === 'auto_autopay') {
                 const signup = new ChatGPTSignup({
                     email: currentEmail, password, name, birthdate: bday.full,
@@ -130,7 +130,7 @@ async function handleAccountTask(task) {
                     logger.error(`Pendaftaran gagal: ${sRes.error}`);
                     if (purchaseId) luckMailApi.cancelEmail(purchaseId);
                     telegramHandler.updateStatusFor(chatId, `🚫 <b>REGISTRATION FAILED</b>\n━━━━━━━━━━━━━━━━━━\n⚠️ Reason: <code>${sRes.error}</code>`);
-                    return;
+                    return { success: false, email: currentEmail, error: sRes.error };
                 }
 
                 let refreshToken = null;
@@ -152,7 +152,7 @@ async function handleAccountTask(task) {
                     logger.info(`Proses pembayaran GoPay...`);
                     if (!gopayPhone || !gopayPin) {
                         telegramHandler.updateStatusFor(chatId, `⚠️ <b>GOPAY NOT CONFIGURED</b>\nRegistration success, but payment was skipped.`);
-                        return;
+                        return { success: true, email: currentEmail, password, accountType: 'Free', error: "GoPay Not Configured" };
                     }
 
                     const autopay = new ChatGPTAutopay({
@@ -166,14 +166,16 @@ async function handleAccountTask(task) {
                     telegramHandler.updateStatusFor(chatId, `💳 <b>Initiating Payment...</b>\n<i>Processing GoPay transaction...</i>`);
                     const aRes = await autopay.runAutopay();
                     await handleAutopayResult(chatId, currentEmail, password, aRes);
+                    return aRes;
                 } else {
                     telegramHandler.updateStatusFor(chatId, `✅ <b>REGISTRATION SUCCESS</b>\n━━━━━━━━━━━━━━━━━━\n📧 Email: <code>${currentEmail}</code>\n🔑 Password: <code>${password}</code>\n💎 Mode: <b>Signup Only</b>`);
+                    return { success: true, email: currentEmail, password, accountType: 'Free' };
                 }
             } else if (mode === 'login_autopay' || mode === 'auto_loginpay') {
                 logger.info(`Proses Login + Autopay...`);
                 if (!gopayPhone || !gopayPin) {
                     telegramHandler.updateStatusFor(chatId, `⚠️ <b>GOPAY NOT CONFIGURED</b>\nLogin cancelled due to missing payment info.`);
-                    return;
+                    return { success: false, email: currentEmail, error: "GoPay Not Configured" };
                 }
 
                 const autopay = new ChatGPTAutopay({
@@ -185,12 +187,15 @@ async function handleAccountTask(task) {
                 telegramHandler.updateStatusFor(chatId, `🔑 <b>Authenticating...</b>\n<i>Checking account credentials...</i>`);
                 const aRes = await autopay.runAutopay();
                 await handleAutopayResult(chatId, currentEmail, password, aRes);
+                return aRes;
             }
         });
+        return result;
     } catch (err) {
         logger.error(`Kesalahan: ${err.message}`);
         if (purchaseId) luckMailApi.cancelEmail(purchaseId);
         telegramHandler.updateStatusFor(chatId, `🔥 <b>SYSTEM CRITICAL ERROR</b>\n━━━━━━━━━━━━━━━━━━\n<code>${err.message}</code>`);
+        return { success: false, email: currentEmail, error: err.message };
     } finally {
         try {
             await localCycleTLS.exit();

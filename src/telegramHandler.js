@@ -1,8 +1,11 @@
 const TelegramBot = require('node-telegram-bot-api');
 const chalk = require('chalk');
 const { AsyncLocalStorage } = require('async_hooks');
+const fs = require('fs');
+const path = require('path');
 const db = require('./db');
 const workerPool = require('./workerPool');
+const logger = require('./utils/logger');
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
@@ -23,7 +26,11 @@ function getUserState(chatId) {
             messageQueue: [],
             isQueueProcessing: false,
             currentTaskInfo: null,
-            setupStep: null // 'password', 'gopayPhone', 'gopayPin'
+            batchResults: [], 
+            batchTarget: 0,    // Jumlah task yang harus selesai
+            batchCompleted: 0, // Jumlah task yang sudah selesai
+            isBatchMode: false,
+            setupStep: null 
         });
     }
     return userStates.get(chatId);
@@ -95,6 +102,7 @@ function validateEmail(email) {
 
 function getSystemDashboardText() {
     const slots = workerPool.getActiveStatus();
+    const queueLen = workerPool.getQueuePosition ? 0 : 0; // placeholder
     let text = `🖥️ <b>SERVER STATUS DASHBOARD</b>\n`;
     text += `━━━━━━━━━━━━━━━━━━\n`;
     text += `🟢 Active Slots: ${slots.length} / ${process.env.MAX_THREADS || 5}\n\n`;
@@ -103,9 +111,14 @@ function getSystemDashboardText() {
         text += `<i>Server is fully available.</i>\n`;
     } else {
         slots.forEach((s, idx) => {
-            const modeName = s.mode === 'login_autopay' ? 'LOGIN+PAY' : (s.mode === 'autopay' ? 'SIGNUP+PAY' : 'SIGNUP ONLY');
+            const mMap = {
+                'login_autopay': 'LOGIN+PAY', 'auto_loginpay': 'AUTO LOGIN+PAY',
+                'autopay': 'SIGNUP+PAY', 'auto_autopay': 'AUTO SIGNUP+PAY',
+                'auto_signup': 'AUTO SIGNUP', 'signup': 'SIGNUP ONLY'
+            };
+            const modeName = mMap[s.mode] || s.mode.toUpperCase();
             const runTime = Math.floor((Date.now() - s.startTime) / 1000);
-            text += `[${idx+1}] 👤 User ${s.userId.substring(0,4)}... | <code>${s.email}</code>\n`;
+            text += `[${idx+1}] 👤 User ${s.userId.substring(0,4)}... | <code>${s.email || 'AUTO'}</code>\n`;
             text += `      💎 ${modeName} | ⏱️ ${runTime}s\n`;
         });
     }
@@ -452,7 +465,47 @@ function initTelegram() {
                     }
                 }
 
-                // Add to queue
+                // ── BATCH MODE: auto_autopay ──────────────────────────────
+                // Jika mode auto_autopay (LuckMail), tanya jumlah akun yang ingin dibuat
+                // lalu enqueue sebanyak itu. workerPool akan proses 1-per-1 otomatis (FIFO).
+                if (mode === 'auto_autopay') {
+                    // Cek jika sudah ada batch berjalan/antri
+                    const state = getUserState(chatId);
+                    if (workerPool.isUserBusy && workerPool.isUserBusy(chatId)) {
+                        bot.sendMessage(chatId, "⚠️ <b>Anda masih punya proses berjalan atau antrian.</b>\nTunggu hingga selesai atau batalkan dulu.", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                        return;
+                    }
+                    const jumlahStr = await askTelegramUser(chatId, "Berapa jumlah akun yang ingin dibuat?\n<i>(Ketik angka, contoh: 3)</i>", "<b>[#BATCH]</b> ");
+                    const jumlah = parseInt(jumlahStr, 10);
+                    const maxBatch = parseInt(process.env.MAX_THREADS, 10) * 2 || 10;
+                    if (!jumlahStr || isNaN(jumlah) || jumlah < 1) {
+                        bot.sendMessage(chatId, "❌ Jumlah tidak valid. Proses dibatalkan.", mainMenuKeyboard);
+                        return;
+                    }
+                    if (jumlah > maxBatch) {
+                        bot.sendMessage(chatId, `⚠️ Maksimal <b>${maxBatch} akun</b> per batch.`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                        return;
+                    }
+                    // Enqueue semua tasks sekaligus; workerPool proses FIFO
+                    state.batchResults = []; // Reset penampung hasil
+                    state.batchCompleted = 0;
+                    state.batchTarget = jumlah;
+                    state.isBatchMode = true; 
+                    for (let bIdx = 0; bIdx < jumlah; bIdx++) {
+                        workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay' });
+                    }
+                    updateStatusFor(chatId,
+                        `📥 <b>Batch Antrian Ditambahkan</b>\n` +
+                        `🔢 Jumlah: <b>${jumlah} akun</b>\n` +
+                        `💳 Mode: <b>Auto Signup + Autopay</b>\n` +
+                        `<i>Bot akan membuat akun secara otomatis satu per satu...</i>`,
+                        { email: 'AUTO-BATCH', mode: 'auto_autopay' }, true
+                    );
+                    return;
+                }
+                // ────────────────────────────────────────────────────────────
+
+                // Add to queue (mode selain auto_autopay)
                 let mappedMode = mode;
                 if (mode === 'loginpay') mappedMode = 'login_autopay';
                 if (mode === 'pay') mappedMode = 'autopay';
@@ -519,8 +572,95 @@ function updateStatusFor(chatId, text, accountInfo = null, isQueued = false) {
     if (!bot) return;
     chatId = chatId.toString();
     const state = getUserState(chatId);
+
     state.messageQueue.push({ text, accountInfo, isQueued });
     processUserMessageQueue(chatId);
+}
+
+/**
+ * Kirim file JSON akun ke user (untuk single task maupun batch).
+ */
+async function sendAccountJsonFile(chatId, results) {
+    if (!bot || !results || results.length === 0) return;
+    try {
+        const fileName = `account_${new Date().getTime()}.json`;
+        const filePath = path.join(process.cwd(), fileName);
+
+        const formattedData = {};
+        results.forEach(acc => {
+            if (acc && acc.email) {
+                formattedData[acc.email] = {
+                    email: acc.email,
+                    password: acc.password || 'N/A',
+                    accountType: acc.accountType || 'Free',
+                    accessToken: acc.accessToken || null,
+                    error: acc.error || null
+                };
+            }
+        });
+
+        fs.writeFileSync(filePath, JSON.stringify(formattedData, null, 2));
+
+        const isBatch = results.length > 1;
+        const caption = isBatch
+            ? `📦 <b>BATCH REPORT</b>\n${results.length} akun telah diproses. Berikut rekapannya:`
+            : `📄 <b>DATA AKUN</b>\nProses selesai! Berikut data akun Anda:`;
+
+        await bot.sendMessage(chatId, caption, { parse_mode: 'HTML' });
+        await bot.sendDocument(chatId, filePath);
+
+        // Hapus file sementara setelah 30 detik
+        setTimeout(() => {
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        }, 30000);
+
+        logger.info(`[Bot] File JSON akun berhasil dikirim ke ${chatId} (${results.length} akun)`);
+    } catch (err) {
+        logger.error('[Bot] Gagal kirim file JSON akun: ' + err.message);
+        bot.sendMessage(chatId, '⚠️ Gagal mengirim file laporan JSON.').catch(() => {});
+    }
+}
+
+/**
+ * Dipanggil oleh workerPool saat task selesai (sukses maupun gagal).
+ * Menentukan aksi berdasarkan mode: batch = kumpulkan, single = kirim langsung.
+ */
+function handleTaskResult(chatId, result) {
+    if (!result) return;
+    chatId = chatId.toString();
+    const state = getUserState(chatId);
+
+    if (state.isBatchMode) {
+        // Mode Batch: kumpulkan hasil dan cek apakah semua sudah selesai
+        state.batchResults.push(result);
+        state.batchCompleted++;
+        logger.info(`[Bot] Result amankan untuk batch ${chatId} (${state.batchCompleted}/${state.batchTarget})`);
+        checkAndSendBatchReport(chatId);
+    } else {
+        // Mode Single: kirim JSON langsung setelah jeda singkat (beri waktu status dashboard diupdate)
+        setTimeout(() => sendAccountJsonFile(chatId, [result]), 2000);
+    }
+}
+
+/**
+ * Fungsi mandiri untuk mengirim laporan batch jika target tercapai.
+ * Dipanggil tiap kali ada update status (batch mode).
+ */
+async function checkAndSendBatchReport(chatId) {
+    const state = getUserState(chatId);
+    
+    // Guard: Pastikan dalam mode batch dan target sudah tercapai
+    if (state.isBatchMode && state.batchCompleted >= state.batchTarget && state.batchTarget > 0) {
+        // Ambil data hasil dan segera reset state agar tidak kepanggil dobel
+        const results = [...state.batchResults];
+        state.isBatchMode = false;
+        state.batchResults = [];
+        state.batchTarget = 0;
+        state.batchCompleted = 0;
+
+        // Beri jeda sedikit agar dashboard status FINISHED terkirim duluan
+        setTimeout(() => sendAccountJsonFile(chatId, results), 2500);
+    }
 }
 
 // Global legacy fallback mapping
@@ -554,6 +694,7 @@ async function processUserMessageQueue(chatId) {
 
     while (state.messageQueue.length > 0) {
         let latestEntry = state.messageQueue.shift();
+        
         while (state.messageQueue.length > 0) {
             if (state.messageQueue[0].accountInfo) {
                 latestEntry.accountInfo = state.messageQueue[0].accountInfo;
@@ -573,6 +714,7 @@ async function processUserMessageQueue(chatId) {
             let reply_markup = { inline_keyboard: [] };
 
             const isWorkerRunning = workerPool.isUserActive(chatId);
+            const isUserBusy = workerPool.isUserBusy(chatId);
 
             if (state.currentTaskInfo) {
                 const { email, mode, name } = state.currentTaskInfo;
@@ -657,11 +799,14 @@ async function processUserMessageQueue(chatId) {
                     state.dashboardObscured = false;
                 }
             }
+
         } catch (e) {
             console.log(chalk.red("[Bot] Gagal update status Telegram: " + e.message));
         }
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (e) {}
     }
 
     state.isQueueProcessing = false;
@@ -670,8 +815,9 @@ async function processUserMessageQueue(chatId) {
 module.exports = {
     initTelegram,
     askTelegramUser,
-    askTelegram, // Export legacy proxy
+    askTelegram,
     updateStatusFor,
+    handleTaskResult,
     setRestartCallback,
     stopTelegram,
     asyncLocalStorage

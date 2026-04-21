@@ -4,11 +4,16 @@ const MAX_SLOTS = parseInt(process.env.MAX_THREADS) || 5;
 
 // Global queue across all users
 let globalQueue = [];
-// Map of userId -> active slot info
+// Map of taskId -> active slot info
 let activeSlots = new Map();
 
 // We need a way to track callback for actual task execution
 let processTaskCallback = null;
+
+let _taskCounter = 0;
+function _nextTaskId() {
+    return `task_${++_taskCounter}_${Date.now()}`;
+}
 
 function setTaskProcessor(cb) {
     processTaskCallback = cb;
@@ -18,8 +23,20 @@ function getActiveCount() {
     return activeSlots.size;
 }
 
+// Cek apakah user masih punya slot AKTIF (bukan dari queue)
 function isUserActive(userId) {
-    return activeSlots.has(userId.toString());
+    userId = userId.toString();
+    for (const slot of activeSlots.values()) {
+        if (slot.userId === userId) return true;
+    }
+    return false;
+}
+
+// Cek apakah user masih punya task di queue (termasuk yang sedang jalan)
+function isUserBusy(userId) {
+    userId = userId.toString();
+    if (isUserActive(userId)) return true;
+    return globalQueue.some(t => t.userId.toString() === userId);
 }
 
 function getQueuePosition(userId) {
@@ -29,6 +46,7 @@ function getQueuePosition(userId) {
 }
 
 function enqueueTask(task) {
+    task.taskId = task.taskId || _nextTaskId();
     globalQueue.push(task);
     tryStart();
     return getQueuePosition(task.userId);
@@ -43,9 +61,8 @@ function getActiveStatus() {
     return Array.from(activeSlots.values());
 }
 
-function releaseSlot(userId) {
-    userId = userId.toString();
-    activeSlots.delete(userId);
+function releaseSlot(taskId) {
+    activeSlots.delete(taskId);
     tryStart(); // Try to fill the slot
 }
 
@@ -54,20 +71,29 @@ async function tryStart() {
         return;
     }
 
-    // Find the first task in queue belonging to a user who doesn't currently have an active slot
-    const taskIndex = globalQueue.findIndex(t => !activeSlots.has(t.userId.toString()));
-    
+    // CARI TASK PERTAMA di queue yang userId-nya SEDANG TIDAK AKTIF
+    const taskIndex = globalQueue.findIndex(t => {
+        const uid = t.userId.toString();
+        // Cek apakah ada slot aktif yang memiliki userId ini
+        for (const slot of activeSlots.values()) {
+            if (slot.userId === uid) return false; // User sedang sibuk, skip task ini dulu
+        }
+        return true; // User ini bebas, ambil task-nya
+    });
+
     if (taskIndex === -1) {
-        // All tasks in queue belong to users who are currently running a task
+        // Semua task di antrian milik user yang sedang aktif running task lain
         return;
     }
 
     // Remove task from queue
     const task = globalQueue.splice(taskIndex, 1)[0];
     const userIdStr = task.userId.toString();
+    const taskId = task.taskId;
 
-    // Mark slot as active
-    activeSlots.set(userIdStr, {
+    // Mark slot as active (key = taskId, value simpan userId untuk tracking)
+    activeSlots.set(taskId, {
+        taskId,
         userId: userIdStr,
         chatId: task.chatId,
         email: task.email,
@@ -75,42 +101,48 @@ async function tryStart() {
         startTime: Date.now()
     });
 
-    logger.info(`[Pool] Menjalankan task untuk User ${userIdStr} - Email: ${task.email}`);
+    logger.info(`[Pool] Menjalankan task ${taskId} untuk User ${userIdStr} - Mode: ${task.mode}`);
 
     if (processTaskCallback) {
         // Run asynchronously, catch errors, and ensure releaseSlot is called
-        processTaskCallback(task).catch(err => {
-            logger.error(`[Pool] Error di task (User ${userIdStr}): ${err.message}`);
+        processTaskCallback(task).then(result => {
+             // Teruskan result ke telegramHandler untuk batch/single reporting
+             // tanpa menampilkan pesan status tambahan (pesan sudah dikirim oleh handleAccountTask)
+             const { handleTaskResult } = require('./telegramHandler');
+             if (handleTaskResult) handleTaskResult(userIdStr, result);
+        }).catch(err => {
+            logger.error(`[Pool] Error di task ${taskId} (User ${userIdStr}): ${err.message}`);
+            const { handleTaskResult } = require('./telegramHandler');
+            if (handleTaskResult) handleTaskResult(userIdStr, { success: false, email: task.email || '', error: err.message });
         }).finally(() => {
-            logger.info(`[Pool] Selesai/Release slot untuk User ${userIdStr}`);
-            releaseSlot(userIdStr);
+            logger.info(`[Pool] Selesai/Release slot untuk task ${taskId} (User ${userIdStr})`);
+            releaseSlot(taskId);
         });
     } else {
         logger.error("[Pool] Belum ada prosesor(task runner) yang di-set!");
-        releaseSlot(userIdStr);
+        releaseSlot(taskId);
     }
 
-    // Since we might have freed a slot and picked a task, try to start another if there's room
+    // Try to start another task if there's still room
     tryStart();
 }
 
-// Menghapus state active slot (contoh: jika bot error/cancelled dari luar)
-// Berguna untuk kill switch manual per user.
+// Menghapus semua active slot milik user (untuk cancel)
 function cancelUserActiveToken(userId) {
-    // Di worker pool, kita hanya memutus pencatatan state-nya.
-    // Pekerjaan mematikan CycleTLS dll tetap harus jadi tanggung jawab index.js yang menghandle event cancel.
-    // Tapi karena code sebelumnya terisolir tanpa kill switch yang baik dari luar, kita minimal bisa hilangkan state-nya.
-    const uidStr = userId.toString();
-    if (activeSlots.has(uidStr)) {
-        activeSlots.delete(uidStr);
-        tryStart();
+    userId = userId.toString();
+    for (const [taskId, slot] of activeSlots.entries()) {
+        if (slot.userId === userId) {
+            activeSlots.delete(taskId);
+        }
     }
+    tryStart();
 }
 
 module.exports = {
     setTaskProcessor,
     getActiveCount,
     isUserActive,
+    isUserBusy,
     getQueuePosition,
     enqueueTask,
     cancelUserQueue,
@@ -118,3 +150,4 @@ module.exports = {
     getActiveStatus,
     releaseSlot
 };
+

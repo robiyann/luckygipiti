@@ -1,1 +1,17 @@
 node_modules
+.env
+accounts.json
+data.md
+data.txt
+doc.md
+email.json
+flow.md
+implementation_plan.md
+test_api.json
+test_code.json
+test_email_purchase.json
+test-send.js
+orders.json
+users.json
+otp_cache.json
+*.log

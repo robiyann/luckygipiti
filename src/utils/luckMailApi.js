@@ -5,6 +5,8 @@ const logger = require('./logger');
 const API_KEY = "ak_8d96ef30a1e01a5d095d25a2683a57fc";
 const BASE_URL = "https://mails.luckyous.com/api/v1/openapi";
 
+const ALLOWED_DOMAINS = ["outlook.de", "outlook.cl", "outlook.ph"];
+
 const apiClient = axios.create({
     baseURL: BASE_URL,
     headers: {
@@ -14,15 +16,19 @@ const apiClient = axios.create({
 });
 
 /**
- * Membeli slot email baru dari LuckMail (Outlook.de)
+ * Membeli slot email baru dari LuckMail (Random Outlook Domain)
  * @returns {Promise<{orderId: string, email: string}>}
  */
 async function purchaseEmail() {
     try {
+        // Pilih domain secara acak
+        const randomDomain = ALLOWED_DOMAINS[Math.floor(Math.random() * ALLOWED_DOMAINS.length)];
+        logger.info(`[LuckMail] Menyiapkan pembelian email dengan domain: ${randomDomain}`);
+
         const response = await apiClient.post('/email/purchase', {
             project_code: "openai",
             email_type: "ms_imap",
-            domain: "outlook.de",
+            domain: randomDomain,
             quantity: 1,
             variant_mode: ""
         });
@@ -50,7 +56,7 @@ async function purchaseEmail() {
 
 /**
  * Polling untuk mengambil OTP dari order ID LuckMail.
- * Melakukan polling tiap 2 detik, maksimal selama 20 detik (10 kali).
+ * Melakukan polling tiap 2 detik, maksimal selama 90 detik (45 kali).
  * Menggunakan sistem cache OTP agar tidak mengembalikan kode OTP basi.
  * 
  * @param {string} token - Token dari email yang dibeli.
