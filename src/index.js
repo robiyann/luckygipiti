@@ -1,4 +1,5 @@
 require("dotenv").config();
+require('events').EventEmitter.defaultMaxListeners = 30; // Fix: multi-worker concurrent socket listeners
 const fs = require("fs");
 const path = require("path");
 const chalk = require("chalk");
@@ -8,7 +9,7 @@ const { generateRandomName, generateRandomBirthday } = require("./utils/emailGen
 const initCycleTLS = require("cycletls");
 const logger = require("./utils/logger");
 const luckMailApi = require("./utils/luckMailApi");
-const { claimGopaySlot, releaseGopaySlot, waitForGopayReset, triggerMacrodroidWebhook } = require("./utils/gopayOtpFetcher");
+const { claimGopaySlot, releaseGopaySlot, triggerMacrodroidWebhook } = require("./utils/gopayOtpFetcher");
 
 const db = require("./db");
 const workerPool = require("./workerPool");
@@ -46,23 +47,31 @@ async function handleAccountTask(task) {
     let purchaseId = null;
 
     if (mode === 'auto_signup' || mode === 'auto_autopay') {
-        try {
-            telegramHandler.updateStatusFor(chatId, `🛍️ <b>Membeli Email via LuckMail...</b>`);
-            const purchase = await luckMailApi.purchaseEmail();
-            currentEmail = purchase.email;
-            token = purchase.token;
-            purchaseId = purchase.purchaseId;
-            telegramHandler.updateStatusFor(chatId, `🛍️ <b>Email Didapat:</b> <code>${currentEmail}</code>`);
-        } catch (e) {
-            telegramHandler.updateStatusFor(chatId, `🚫 <b>LUCKMAIL FAILED</b>\n${e.message}`);
-            return;
+        const maxLuckRetries = 3;
+        for (let attempt = 1; attempt <= maxLuckRetries; attempt++) {
+            try {
+                telegramHandler.updateStatusFor(chatId, `🛍️ <b>Membeli Email via LuckMail...</b>${attempt > 1 ? ` (Retry ${attempt}/${maxLuckRetries})` : ''}`);
+                const purchase = await luckMailApi.purchaseEmail();
+                currentEmail = purchase.email;
+                token = purchase.token;
+                purchaseId = purchase.purchaseId;
+                telegramHandler.updateStatusFor(chatId, `🛍️ <b>Email Didapat:</b> <code>${currentEmail}</code>`);
+                break; // Sukses, keluar dari loop retry
+            } catch (e) {
+                if (attempt === maxLuckRetries) {
+                    telegramHandler.updateStatusFor(chatId, `🚫 <b>LUCKMAIL FAILED</b>\n${e.message}`);
+                    return { success: false, email: '', error: `LuckMail: ${e.message}` };
+                }
+                logger.warn(`LuckMail attempt ${attempt} failed: ${e.message}. Retrying in 5s...`);
+                await new Promise(r => setTimeout(r, 5000));
+            }
         }
     } else if (mode === 'auto_loginpay') {
         const existingOrder = db.getOrderByEmail(currentEmail);
         token = existingOrder ? existingOrder.orderId : null;
         if (!token) {
             telegramHandler.updateStatusFor(chatId, `🚫 <b>ORDER NOT FOUND</b>\nTidak bisa auto poll OTP karena data email ini tak ada di riwayat bot.`);
-            return;
+            return { success: false, email: currentEmail, error: 'Order/token tidak ditemukan di database' };
         }
     }
 
@@ -138,7 +147,7 @@ async function handleAccountTask(task) {
                 if (!acc || !acc.accessToken) {
                     telegramHandler.updateStatusFor(chatId, `⚠️ <b>SESSION EXPIRED</b>\nData akun atau Access Token tidak (lagi) tersedia di database.`);
                     if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
-                    return;
+                    return { success: false, email: currentEmail, error: 'Session expired / Access Token tidak ada' };
                 }
                 
                 const autopay = new ChatGPTAutopay({
@@ -154,17 +163,28 @@ async function handleAccountTask(task) {
                 telegramHandler.updateStatusFor(chatId, `💳 <b>Retrying Payment...</b>\n<i>Bypassing login via cached token...</i>`);
                 const aRes = await autopay.runAutopay();
                 
-                // Handle Pool Cleanup
+                // Pool cleanup: sukses = release + trigger reset (non-blocking)
+                //               gagal  = release saja (slot kembali available)
                 if (activeSlot) {
-                    if (aRes.success) {
-                        await waitForGopayReset(otpServerUrl, finalServerNum);
-                    } else {
-                        await releaseGopaySlot(otpServerUrl, activeSlot.id);
-                    }
+                    releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
+                    if (aRes.success) triggerMacrodroidWebhook(otpServerUrl, finalWebhook).catch(() => {});
                 }
 
                 await handleAutopayResult(chatId, currentEmail, password, aRes);
-                return aRes;
+                // Ekstrak refresh token dari cookie jar jika ada
+                let refreshToken = null;
+                if (aRes.cookieJar) {
+                   const authCookies = aRes.cookieJar.store.get("auth.openai.com");
+                   if (authCookies) refreshToken = authCookies.get("__Secure-next-auth.refresh-token");
+                }
+                // Kembalikan result lengkap dengan accountType yang sudah diupdate
+                return { 
+                    ...aRes, 
+                    email: currentEmail, 
+                    password, 
+                    refreshToken,
+                    accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
+                };
             } else if (mode === 'signup' || mode === 'autopay' || mode === 'auto_signup' || mode === 'auto_autopay') {
                 const signup = new ChatGPTSignup({
                     email: currentEmail, password, name, birthdate: bday.full,
@@ -222,17 +242,27 @@ async function handleAccountTask(task) {
                     telegramHandler.updateStatusFor(chatId, `💳 <b>Initiating Payment...</b>\n<i>Processing GoPay transaction...</i>`);
                     const aRes = await autopay.runAutopay();
 
-                    // Handle Pool Cleanup
+                    // Pool cleanup: sukses = release + trigger reset (non-blocking)
+                    //               gagal  = release saja (slot kembali available)
                     if (activeSlot) {
-                        if (aRes.success) {
-                            await waitForGopayReset(otpServerUrl, finalServerNum);
-                        } else {
-                            await releaseGopaySlot(otpServerUrl, activeSlot.id);
-                        }
+                        releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
+                        if (aRes.success) triggerMacrodroidWebhook(otpServerUrl, finalWebhook).catch(() => {});
                     }
 
                     await handleAutopayResult(chatId, currentEmail, password, aRes);
-                    return aRes;
+                    // Ekstrak refresh token dari cookie jar jika ada
+                    let refreshToken = null;
+                    if (aRes.cookies) {
+                       const authCookies = aRes.cookies.store.get("auth.openai.com");
+                       if (authCookies) refreshToken = authCookies.get("__Secure-next-auth.refresh-token");
+                    }
+                    return { 
+                        ...aRes, 
+                        email: currentEmail, 
+                        password, 
+                        refreshToken,
+                        accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
+                    };
                 } else {
                     if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
                     telegramHandler.updateStatusFor(chatId, `✅ <b>REGISTRATION SUCCESS</b>\n━━━━━━━━━━━━━━━━━━\n📧 Email: <code>${currentEmail}</code>\n🔑 Password: <code>${password}</code>\n💎 Mode: <b>Signup Only</b>`);
@@ -256,17 +286,29 @@ async function handleAccountTask(task) {
                 telegramHandler.updateStatusFor(chatId, `🔑 <b>Authenticating...</b>\n<i>Checking account credentials...</i>`);
                 const aRes = await autopay.runAutopay();
 
-                // Handle Pool Cleanup
+                // Autopay sukses: Tandai slot ke 'resetting' dan trigger reset HP
+                // Pool cleanup: sukses = release + trigger reset (non-blocking)
+                //               gagal  = release saja (slot kembali available)
                 if (activeSlot) {
-                    if (aRes.success) {
-                        await waitForGopayReset(otpServerUrl, finalServerNum);
-                    } else {
-                        await releaseGopaySlot(otpServerUrl, activeSlot.id);
-                    }
+                    releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
+                    if (aRes.success) triggerMacrodroidWebhook(otpServerUrl, finalWebhook).catch(() => {});
                 }
 
                 await handleAutopayResult(chatId, currentEmail, password, aRes);
-                return aRes;
+                // Ekstrak refresh token dari cookie jar jika ada
+                let refreshToken = null;
+                if (aRes.cookieJar) {
+                   const authCookies = aRes.cookieJar.store.get("auth.openai.com");
+                   if (authCookies) refreshToken = authCookies.get("__Secure-next-auth.refresh-token");
+                }
+                // Kembalikan result lengkap dengan accountType yang sudah diupdate
+                return { 
+                    ...aRes, 
+                    email: currentEmail, 
+                    password, 
+                    refreshToken,
+                    accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
+                };
             }
         });
         return result;

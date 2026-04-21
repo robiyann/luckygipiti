@@ -1577,6 +1577,40 @@ class ChatGPTAutopay {
             return b.data;
         }
 
+        // AUTO-RETRY LOGIC: Try to auto-reset link via MacroDroid
+        // _retryLinkCount tracks how many times we've retried AFTER reset.
+        // Webhook is only triggered ONCE (on first conflict). Subsequent retries
+        // just wait longer, giving Midtrans backend time to sync with GoPay unlink.
+        const MAX_LINK_RETRIES = 3;
+        const RETRY_DELAYS = [5000, 8000, 12000]; // ms per attempt
+
+        if (typeof this._retryLinkCount === 'undefined') {
+            this._retryLinkCount = 0;
+        }
+
+        if (this._retryLinkCount === 0) {
+            // First conflict: trigger webhook and wait for HP to confirm reset
+            const otpServerUrl = process.env.OTP_SERVER_URL;
+            if (otpServerUrl) {
+                logger.warn(this.tag + "GoPay Linked Conflict! Mencoba auto-reset link...");
+                try {
+                    await triggerMacrodroidWebhook(otpServerUrl, this.webhookAction);
+                    await waitForGopayReset(otpServerUrl, this.serverNumber);
+                    // HP confirmed reset. Now fall through to retry logic below.
+                } catch (err) {
+                    logger.error(this.tag + "Gagal trigger/wait reset: " + err.message);
+                }
+            }
+        }
+
+        if (this._retryLinkCount < MAX_LINK_RETRIES) {
+            const delay = RETRY_DELAYS[this._retryLinkCount] || 12000;
+            this._retryLinkCount++;
+            logger.info(this.tag + `Reset: menunggu ${delay/1000}s lalu retry linking (${this._retryLinkCount}/${MAX_LINK_RETRIES})...`);
+            await sleep(delay);
+            return await this.linkGoPay(); // Recursive retry
+        }
+
         const d = new Error("GoPay sudah terhubung!");
         d.hint = "Coba putuskan sambungan di: Gojek -> Profil -> Pengaturan -> Aplikasi Terhubung -> Midtrans/OpenAI";
         d.noRetry = true;
