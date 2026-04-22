@@ -9,32 +9,41 @@ const logger = require('./logger');
  * @param {string} serverNumber - ID Server/Slot (default '1')
  */
 async function fetchGopayOtp(gopayPhone, serverUrl, serverNumber = '1') {
-    const maxAttempts = 20;
+    const maxAttempts = 25;
     const delayMs = 3000;
     const phone = String(gopayPhone).replace(/^0|^\+62/, '');
 
-    logger.info(`[GoPay OTP] Menunggu OTP (Srv #${serverNumber}) untuk nomor: ${phone}...`);
+    logger.info(`[GoPay OTP] Subscribe OTP (Srv #${serverNumber}) untuk nomor: ${phone}...`);
 
+    // 1. Daftar sebagai subscriber
+    let requestId;
+    try {
+        const subRes = await axios.post(`${serverUrl}/otp/subscribe`,
+            { phone, server: String(serverNumber) },
+            { timeout: 5000 }
+        );
+        requestId = subRes.data.requestId;
+        logger.info(`[GoPay OTP] Subscription aktif: ${requestId}`);
+    } catch (err) {
+        throw new Error(`[GoPay OTP] Gagal subscribe: ${err.message}`);
+    }
+
+    // 2. Poll /otp/claim/:requestId
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise(resolve => setTimeout(resolve, delayMs));
         try {
-            const response = await axios.get(`${serverUrl}/otp`, {
-                params: { server: serverNumber, phone },
-                timeout: 5000
-            });
-
-            const data = response.data;
-            if (data && data.text) {
-                const match = String(data.text).match(/\b(\d{4,6})\b/);
-                if (match && match[1]) {
-                    logger.success(`[GoPay OTP] Kode ditemukan: ${match[1]}`);
-                    return match[1];
-                }
+            const response = await axios.get(`${serverUrl}/otp/claim/${requestId}`, { timeout: 5000 });
+            if (response.data && response.data.otp) {
+                logger.success(`[GoPay OTP] Kode ditemukan: ${response.data.otp}`);
+                return response.data.otp;
             }
         } catch (err) {
-            // 404 means no OTP yet
+            if (err.response && err.response.status === 404) {
+                // Belum ada OTP, lanjut polling
+            } else {
+                logger.warn(`[GoPay OTP] Poll error: ${err.message}`);
+            }
         }
-
         if (i % 3 === 0) {
             logger.info(`[GoPay OTP] Masih menunggu... (${(i + 1) * delayMs / 1000}s)`);
         }
