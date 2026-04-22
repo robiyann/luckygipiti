@@ -601,9 +601,6 @@ async function sendAccountJsonFile(chatId, results) {
             return;
         }
 
-        // Tulis JSON
-        fs.writeFileSync(filePath, JSON.stringify(formattedData, null, 2));
-
         // Tulis TXT format email:password:type
         const txtFileName = `account_${ts}.txt`;
         const txtFilePath = path.join(process.cwd(), txtFileName);
@@ -618,21 +615,20 @@ async function sendAccountJsonFile(chatId, results) {
             : `📄 <b>DATA AKUN</b>\nProses selesai! Berikut data akun Anda:`;
 
         await bot.sendMessage(chatId, caption, { parse_mode: 'HTML' });
-        await bot.sendDocument(chatId, filePath);
         await bot.sendDocument(chatId, txtFilePath);
 
         // Hapus file sementara setelah 30 detik
         setTimeout(() => {
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
             if (fs.existsSync(txtFilePath)) fs.unlinkSync(txtFilePath);
         }, 30000);
 
-        logger.info(`[Bot] File JSON akun berhasil dikirim ke ${chatId} (${results.length} akun)`);
+        logger.info(`[Bot] File TXT akun berhasil dikirim ke ${chatId} (${plusCount} akun Plus)`);
     } catch (err) {
-        logger.error('[Bot] Gagal kirim file JSON akun: ' + err.message);
-        bot.sendMessage(chatId, '⚠️ Gagal mengirim file laporan JSON.').catch(() => {});
+        logger.error('[Bot] Gagal kirim file akun: ' + err.message);
+        bot.sendMessage(chatId, '⚠️ Gagal mengirim file laporan.').catch(() => {});
     }
 }
+
 
 /**
  * Dipanggil oleh workerPool saat task selesai (sukses maupun gagal).
