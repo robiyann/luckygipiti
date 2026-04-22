@@ -477,13 +477,8 @@ function initTelegram() {
                     }
                     const jumlahStr = await askTelegramUser(chatId, "Berapa jumlah akun yang ingin dibuat?\n<i>(Ketik angka, contoh: 3)</i>", "<b>[#BATCH]</b> ");
                     const jumlah = parseInt(jumlahStr, 10);
-                    const maxBatch = parseInt(process.env.MAX_THREADS, 10) * 2 || 10;
                     if (!jumlahStr || isNaN(jumlah) || jumlah < 1) {
                         bot.sendMessage(chatId, "❌ Jumlah tidak valid. Proses dibatalkan.", mainMenuKeyboard);
-                        return;
-                    }
-                    if (jumlah > maxBatch) {
-                        bot.sendMessage(chatId, `⚠️ Maksimal <b>${maxBatch} akun</b> per batch.`, { parse_mode: 'HTML', ...mainMenuKeyboard });
                         return;
                     }
                     // Enqueue semua tasks sekaligus; workerPool proses FIFO
@@ -583,7 +578,8 @@ function updateStatusFor(chatId, text, accountInfo = null, isQueued = false) {
 async function sendAccountJsonFile(chatId, results) {
     if (!bot || !results || results.length === 0) return;
     try {
-        const fileName = `account_${new Date().getTime()}.json`;
+        const ts = new Date().getTime();
+        const fileName = `account_${ts}.json`;
         const filePath = path.join(process.cwd(), fileName);
 
         const formattedData = {};
@@ -601,11 +597,20 @@ async function sendAccountJsonFile(chatId, results) {
         });
 
         if (plusCount === 0) {
-            logger.info(`[Bot] Tidak ada akun Plus dalam batch ini. Skip kirim JSON file.`);
+            logger.info(`[Bot] Tidak ada akun Plus dalam batch ini. Skip kirim file.`);
             return;
         }
 
+        // Tulis JSON
         fs.writeFileSync(filePath, JSON.stringify(formattedData, null, 2));
+
+        // Tulis TXT format email:password:type
+        const txtFileName = `account_${ts}.txt`;
+        const txtFilePath = path.join(process.cwd(), txtFileName);
+        const txtContent = Object.values(formattedData)
+            .map((acc, i) => `${i + 1}. ${acc.email}:${acc.password}:${acc.accountType.toLowerCase()}`)
+            .join('\n');
+        fs.writeFileSync(txtFilePath, txtContent);
 
         const isBatch = results.length > 1;
         const caption = isBatch
@@ -614,10 +619,12 @@ async function sendAccountJsonFile(chatId, results) {
 
         await bot.sendMessage(chatId, caption, { parse_mode: 'HTML' });
         await bot.sendDocument(chatId, filePath);
+        await bot.sendDocument(chatId, txtFilePath);
 
         // Hapus file sementara setelah 30 detik
         setTimeout(() => {
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            if (fs.existsSync(txtFilePath)) fs.unlinkSync(txtFilePath);
         }, 30000);
 
         logger.info(`[Bot] File JSON akun berhasil dikirim ke ${chatId} (${results.length} akun)`);
