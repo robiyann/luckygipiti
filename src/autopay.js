@@ -248,10 +248,17 @@ class ChatGPTAutopay {
     this.webhookAction = a.webhookAction || 'reset-link';
     this.skipOtp = a.skipOtp || ![];
     this.skipLogin = a.skipLogin || ![];
-    this.koreaProxyUrl = process.env.KOREA_PROXY_URL || null;
-    
-    // Sticky session proxy for DataImpulse
+
+    // Sticky session proxy for DataImpulse (unik per task, mencegah shared connection)
     const sessionToken = this.sessionId.substring(0, 8);
+
+    const rawKoreaProxy = process.env.KOREA_PROXY_URL || null;
+    if (rawKoreaProxy && rawKoreaProxy.includes('gw.dataimpulse.com')) {
+      this.koreaProxyUrl = rawKoreaProxy.replace(/:\/\/([^/:]+):([^/@]+)@/, `://$1__session-${sessionToken}k:$2@`);
+    } else {
+      this.koreaProxyUrl = rawKoreaProxy;
+    }
+
     const rawGeneralProxy = process.env.GENERAL_PROXY_URL || null;
     if (rawGeneralProxy && rawGeneralProxy.includes('gw.dataimpulse.com')) {
       this.generalProxyUrl = rawGeneralProxy.replace(/:\/\/([^/:]+):([^/@]+)@/, `://$1__session-${sessionToken}:$2@`);
