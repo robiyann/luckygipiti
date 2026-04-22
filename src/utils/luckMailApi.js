@@ -2,10 +2,10 @@ const axios = require('axios');
 const db = require('../db');
 const logger = require('./logger');
 
-const API_KEY = "ak_8d96ef30a1e01a5d095d25a2683a57fc";
+const API_KEY = "luck_2562afcd2c7f3bf600775f57cc7240bd";
 const BASE_URL = "https://mails.luckyous.com/api/v1/openapi";
 
-const ALLOWED_DOMAINS = ["outlook.de", "outlook.cl", "outlook.ph"];
+const ALLOWED_DOMAINS = ["outlook.de"];
 
 const apiClientOpts = {
     baseURL: BASE_URL,
@@ -48,11 +48,11 @@ async function purchaseEmail() {
             const token = purchase.token;
             const email = purchase.email_address;
             const purchaseId = purchase.id;
-            
+
             // Simpan riwayat pembelian ke database orders.json (kita simpan token sebagai ID utilitasnya)
             db.saveOrder(token, email, 'purchased');
             logger.info(`[LuckMail] Berhasil membeli email: ${email} (Token: ${token}, ID: ${purchaseId})`);
-            
+
             return { token, email, purchaseId };
         } else {
             throw new Error(resData ? resData.message || JSON.stringify(resData) : "Unknown error from LuckMail API");
@@ -85,12 +85,12 @@ async function fetchVerificationCode(token, email) {
     for (let i = 0; i < maxRetries; i++) {
         try {
             await new Promise(resolve => setTimeout(resolve, delayMs)); // Delay 2 detik
-            
+
             const response = await apiClient.get(`/email/token/${token}/code`);
-            
+
             if (response.data && response.data.data && response.data.data.verification_code) {
                 const codeRaw = response.data.data.verification_code;
-                
+
                 // Cari angka 6-digit dari kembalian luckmail
                 const match = String(codeRaw).match(/\b(\d{6})\b/);
                 if (match && match[1]) {
@@ -114,7 +114,7 @@ async function fetchVerificationCode(token, email) {
         } catch (error) {
             logger.debug(`[LuckMail] Exception saat polling kode: ${error.message}`);
         }
-        
+
         if (i % 2 === 0) {
             logger.info(`[LuckMail] Menunggu OTP untuk ${email}... (${Math.min((i + 1) * 2, 20)}s)`);
         }

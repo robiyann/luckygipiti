@@ -27,8 +27,9 @@ function getUserState(chatId) {
             isQueueProcessing: false,
             currentTaskInfo: null,
             batchResults: [], 
-            batchTarget: 0,    // Jumlah task yang harus selesai
-            batchCompleted: 0, // Jumlah task yang sudah selesai
+            batchTarget: 0,          // Target akun PLUS yang harus berhasil
+            batchPlusCount: 0,       // Akun Plus yang sudah berhasil
+            batchTotalDispatched: 0, // Total task yang sudah dikirim ke antrian
             isBatchMode: false,
             setupStep: null 
         });
@@ -55,6 +56,17 @@ function internalReset() {
 function setRestartCallback(fn) {
     restartCallback = fn;
 }
+
+// Semua teks tombol keyboard utama — jangan dianggap sebagai input user ketika ada prompt aktif
+const MENU_COMMANDS = new Set([
+    '/start', 'menu', 'p',
+    '🤖 Auto Daftar (LuckMail)',
+    '✨ Daftar Akun Baru',
+    '🔑 Login Akun',
+    '⚙️ Edit Data Saya',
+    '📊 Status Server',
+    '❓ Bantuan'
+]);
 
 const mainMenuKeyboard = {
     reply_markup: {
@@ -198,7 +210,8 @@ function initTelegram() {
             // User Approved 
             
             // Resolving Prompt manually triggered setup steps
-            if (state.activePromptResolve) {
+            // Pastikan tombol menu utama TIDAK ikut me-resolve prompt yang sedang menunggu input.
+            if (state.activePromptResolve && !MENU_COMMANDS.has(text)) {
                 const resolve = state.activePromptResolve;
                 state.activePromptResolve = null;
                 
@@ -214,6 +227,13 @@ function initTelegram() {
                 }).catch(() => {});
 
                 resolve(text);
+                return;
+            }
+            
+            // Jika ada prompt aktif dan user menekan tombol menu, abaikan (jangan ganggu proses)
+            if (state.activePromptResolve && MENU_COMMANDS.has(text)) {
+                // Kirim peringatan halus agar user tahu ada proses aktif
+                bot.sendMessage(chatId, "⚠️ <b>Ada proses yang sedang menunggu input Anda.</b>\n<i>Balas pertanyaan di atas, atau klik 🛑 Batalkan Sesi untuk membatalkan.</i>", { parse_mode: 'HTML' }).catch(() => {});
                 return;
             }
 
@@ -483,17 +503,18 @@ function initTelegram() {
                     }
                     // Enqueue semua tasks sekaligus; workerPool proses FIFO
                     state.batchResults = []; // Reset penampung hasil
-                    state.batchCompleted = 0;
-                    state.batchTarget = jumlah;
+                    state.batchPlusCount = 0;
+                    state.batchTotalDispatched = jumlah;
+                    state.batchTarget = jumlah; // Target = jumlah akun PLUS yang diinginkan
                     state.isBatchMode = true; 
                     for (let bIdx = 0; bIdx < jumlah; bIdx++) {
                         workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay' });
                     }
                     updateStatusFor(chatId,
                         `📥 <b>Batch Antrian Ditambahkan</b>\n` +
-                        `🔢 Jumlah: <b>${jumlah} akun</b>\n` +
+                        `🎯 Target: <b>${jumlah} akun PLUS</b>\n` +
                         `💳 Mode: <b>Auto Signup + Autopay</b>\n` +
-                        `<i>Bot akan membuat akun secara otomatis satu per satu...</i>`,
+                        `<i>Bot akan terus membuat akun baru sampai ${jumlah} akun berhasil PLUS...</i>`,
                         { email: 'AUTO-BATCH', mode: 'auto_autopay' }, true
                     );
                     return;
@@ -640,10 +661,20 @@ function handleTaskResult(chatId, result) {
     const state = getUserState(chatId);
 
     if (state.isBatchMode) {
-        // Mode Batch: kumpulkan hasil dan cek apakah semua sudah selesai
+        // Mode Batch: kumpulkan hasil dan cek apakah target Plus sudah tercapai
         state.batchResults.push(result);
-        state.batchCompleted++;
-        logger.info(`[Bot] Result amankan untuk batch ${chatId} (${state.batchCompleted}/${state.batchTarget})`);
+        const isPlus = result && result.accountType === 'Plus';
+        if (isPlus) {
+            state.batchPlusCount++;
+            logger.info(`[Bot] Akun Plus ke-${state.batchPlusCount}/${state.batchTarget} berhasil (${chatId})`);
+        } else {
+            // Task gagal jadi Plus → enqueue 1 task pengganti jika target belum tercapai
+            if (state.batchPlusCount < state.batchTarget) {
+                logger.warn(`[Bot] Task gagal (bukan Plus), mengantrikan pengganti untuk ${chatId}...`);
+                state.batchTotalDispatched++;
+                workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay' });
+            }
+        }
         checkAndSendBatchReport(chatId);
     } else {
         // Mode Single: kirim JSON langsung setelah jeda singkat (beri waktu status dashboard diupdate)
@@ -658,25 +689,27 @@ function handleTaskResult(chatId, result) {
 async function checkAndSendBatchReport(chatId) {
     const state = getUserState(chatId);
     
-    // Guard: Pastikan dalam mode batch dan target sudah tercapai
-    if (state.isBatchMode && state.batchCompleted >= state.batchTarget && state.batchTarget > 0) {
+    // Guard: Pastikan dalam mode batch dan target PLUS sudah tercapai
+    if (state.isBatchMode && state.batchPlusCount >= state.batchTarget && state.batchTarget > 0) {
         // Ambil data hasil dan segera reset state agar tidak kepanggil dobel
         const results = [...state.batchResults];
-        const successCount = results.filter(r => r.success).length;
-        const failCount = results.length - successCount;
+        const successCount = state.batchPlusCount;
+        const totalDispatched = state.batchTotalDispatched;
+        const failCount = totalDispatched - successCount;
 
         state.isBatchMode = false;
         state.batchResults = [];
         state.batchTarget = 0;
-        state.batchCompleted = 0;
+        state.batchPlusCount = 0;
+        state.batchTotalDispatched = 0;
 
         // Kirim ringkasan batch
         const summaryMsg = `📊 <b>BATCH COMPLETED</b>\n` +
                          `━━━━━━━━━━━━━━━━━━\n` +
-                         `✅ Success : <b>${successCount} (PLUS)</b>\n` +
-                         `❌ Failed  : <b>${failCount}</b>\n` +
-                         `📦 Total   : <b>${results.length}</b>\n\n` +
-                         `<i>File JSON hanya berisi akun yang berhasil PLUS. Menyiapkan laporan...</i>`;
+                         `✅ Plus     : <b>${successCount} akun</b>\n` +
+                         `❌ Gagal    : <b>${failCount} percobaan</b>\n` +
+                         `📦 Total    : <b>${totalDispatched} task dijalankan</b>\n\n` +
+                         `<i>Menyiapkan laporan ${successCount} akun Plus...</i>`;
         
         bot.sendMessage(chatId, summaryMsg, { parse_mode: 'HTML' });
 
