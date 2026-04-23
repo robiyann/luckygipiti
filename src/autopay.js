@@ -2003,14 +2003,17 @@ class ChatGPTAutopay {
     return c.data;
   }
   async checkSubscriptionStatus() {
-    const a = await this._oaiGet(
-      BASE_CHATGPT +
-      "/backend-api/payments/checkout/openai_llc/" +
-      this.checkoutSessionId,
-    );
-    if (a.data?.payment_status === "paid" && a.data?.status === "complete") {
-      logger.success(this.tag + "Subscription: " + a.data.plan_name + " ✓");
-      return !![];
+    for (let i = 0; i < 3; i++) {
+      if (i > 0) await sleep(2000);
+      const a = await this._oaiGet(
+        BASE_CHATGPT +
+        "/backend-api/payments/checkout/openai_llc/" +
+        this.checkoutSessionId,
+      );
+      if (a.data?.payment_status === "paid" && a.data?.status === "complete") {
+        logger.success(this.tag + "Subscription: " + a.data.plan_name + " ✓");
+        return !![];
+      }
     }
     return ![];
   }
@@ -2079,6 +2082,13 @@ class ChatGPTAutopay {
           }
         }
       }
+
+      logger.info(this.tag + "Verifikasi akhir langganan API...");
+      const isSub = await this.checkSubscriptionStatus();
+      if (!isSub) {
+        throw new Error("Verifikasi API gagal: Status transaksi bukan paid/complete.");
+      }
+
       return {
         success: true,
         email: this.email,

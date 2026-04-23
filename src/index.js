@@ -224,7 +224,7 @@ async function handleAccountTask(task) {
                     // activeSlot is now mandatory
                     if (!activeSlot) {
                         telegramHandler.updateStatusFor(chatId, `⚠️ <b>POOL SIBUK</b>\nRegistrasi berhasil, tapi slot GoPay tidak tersedia. Silakan lakukan Retry Autopay nanti.`);
-                        return { success: true, email: currentEmail, password, accountType: 'Free', error: "GoPay Pool Not Available" };
+                        return { success: false, email: currentEmail, password, accountType: 'Free', error: "GoPay Pool Not Available" };
                     }
 
                     const autopay = new ChatGPTAutopay({

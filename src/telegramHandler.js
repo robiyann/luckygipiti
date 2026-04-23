@@ -632,7 +632,7 @@ async function sendAccountJsonFile(chatId, results) {
 
         const isBatch = results.length > 1;
         const caption = isBatch
-            ? `📦 <b>BATCH REPORT</b>\n${results.length} akun telah diproses. Berikut rekapannya:`
+            ? `📦 <b>BATCH REPORT</b>\n${plusCount} akun berhasil PLUS (dari ${results.length} proses). Berikut rekapannya:`
             : `📄 <b>DATA AKUN</b>\nProses selesai! Berikut data akun Anda:`;
 
         await bot.sendMessage(chatId, caption, { parse_mode: 'HTML' });

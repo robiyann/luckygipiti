@@ -2,7 +2,7 @@ const axios = require('axios');
 const db = require('../db');
 const logger = require('./logger');
 
-const API_KEY = "luck_2562afcd2c7f3bf600775f57cc7240bd";
+const API_KEY = "luck_fe06dd1e01c08ae5aed87c324d39d0f2";
 const BASE_URL = "https://mails.luckyous.com/api/v1/openapi";
 
 const ALLOWED_DOMAINS = ["outlook.de"];
