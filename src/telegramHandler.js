@@ -611,7 +611,8 @@ async function sendAccountJsonFile(chatId, results) {
                 formattedData[acc.email] = {
                     email: acc.email,
                     password: acc.password || 'N/A',
-                    accountType: acc.accountType || 'Plus'
+                    accountType: acc.accountType || 'Plus',
+                    mailToken: acc.mailToken || 'token_tidak_tersedia'
                 };
                 plusCount++;
             }
@@ -622,11 +623,11 @@ async function sendAccountJsonFile(chatId, results) {
             return;
         }
 
-        // Tulis TXT format email:password:type
-        const txtFileName = `account_${ts}.txt`;
+        // Tulis TXT format email ---- password ---- type ---- tokenMail
+        const txtFileName = `${plusCount}_plus_at_${ts}.txt`;
         const txtFilePath = path.join(process.cwd(), txtFileName);
         const txtContent = Object.values(formattedData)
-            .map((acc, i) => `${i + 1}. ${acc.email}:${acc.password}:${acc.accountType.toLowerCase()}`)
+            .map((acc, i) => `${acc.email} ---- ${acc.password} ---- ${acc.accountType} ---- ${acc.mailToken}`)
             .join('\n');
         fs.writeFileSync(txtFilePath, txtContent);
 

@@ -181,6 +181,7 @@ async function handleAccountTask(task) {
                     email: currentEmail, 
                     password, 
                     refreshToken,
+                    mailToken: token,
                     accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
                 };
             } else if (mode === 'signup' || mode === 'autopay' || mode === 'auto_signup' || mode === 'auto_autopay') {
@@ -257,12 +258,13 @@ async function handleAccountTask(task) {
                         email: currentEmail, 
                         password, 
                         refreshToken,
+                        mailToken: token,
                         accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
                     };
                 } else {
                     if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
                     telegramHandler.updateStatusFor(chatId, `✅ <b>REGISTRATION SUCCESS</b>\n━━━━━━━━━━━━━━━━━━\n📧 Email: <code>${currentEmail}</code>\n🔑 Password: <code>${password}</code>\n💎 Mode: <b>Signup Only</b>`);
-                    return { success: true, email: currentEmail, password, accountType: 'Free' };
+                    return { success: true, email: currentEmail, password, accountType: 'Free', mailToken: token };
                 }
             } else if (mode === 'login_autopay' || mode === 'auto_loginpay') {
                 logger.info(`Proses Login + Autopay...`);
@@ -301,6 +303,7 @@ async function handleAccountTask(task) {
                     email: currentEmail, 
                     password, 
                     refreshToken,
+                    mailToken: token,
                     accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
                 };
             }
