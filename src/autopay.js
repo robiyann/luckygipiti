@@ -1599,16 +1599,18 @@ class ChatGPTAutopay {
         }
 
         if (this._retryLinkCount === 0) {
-            // First conflict: trigger webhook and wait for HP to confirm reset
+            // First conflict: trigger webhook ke HP untuk unlink GoPay
+            // Tidak perlu waitForGopayReset — server pool otomatis set slot ke available
+            // begitu HP mengirim status "reset done" via /statusgpay
             const otpServerUrl = process.env.OTP_SERVER_URL;
             if (otpServerUrl) {
-                logger.warn(this.tag + "GoPay Linked Conflict! Mencoba auto-reset link...");
+                logger.warn(this.tag + "GoPay Linked Conflict! Trigger reset ke HP...");
                 try {
                     await triggerMacrodroidWebhook(otpServerUrl, this.webhookAction);
-                    await waitForGopayReset(otpServerUrl, this.serverNumber);
-                    // HP confirmed reset. Now fall through to retry logic below.
+                    logger.info(this.tag + "Webhook reset terkirim. Menunggu 5s sebelum retry...");
+                    await new Promise(r => setTimeout(r, 5000)); // beri waktu HP mulai proses unlink
                 } catch (err) {
-                    logger.error(this.tag + "Gagal trigger/wait reset: " + err.message);
+                    logger.error(this.tag + "Gagal trigger reset: " + err.message);
                 }
             }
         }
