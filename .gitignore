@@ -16,3 +16,5 @@ users.json
 otp_cache.json
 *.log
 *.csv
+account_*.json
+account_*.txt
