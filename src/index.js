@@ -9,6 +9,7 @@ const { generateRandomName, generateRandomBirthday } = require("./utils/emailGen
 const initCycleTLS = require("cycletls");
 const logger = require("./utils/logger");
 const luckMailApi = require("./utils/luckMailApi");
+const tMailApi = require("./utils/tMailApi");
 const { claimGopaySlot, releaseGopaySlot, triggerMacrodroidWebhook, resetAllGopaySlots } = require("./utils/gopayOtpFetcher");
 const { generateStrongPassword } = require("./utils/passwordGenerator");
 
@@ -22,7 +23,8 @@ const audience = "https://api.openai.com/v1";
 
 // Function to run account creation task in isolation
 async function handleAccountTask(task) {
-    const { userId, chatId, email, mode, staticPassword } = task;
+    const { userId, chatId, email, mode, staticPassword, mailProvider } = task;
+    const isTMail = mailProvider === 'tmail';
     
     // Fetch user settings from DB
     const userData = db.getUser(userId);
@@ -35,9 +37,8 @@ async function handleAccountTask(task) {
     let effectivePassword;
     const passwordMode = userData.passwordMode || 'random';
     if (passwordMode === 'static') {
-        // Password dikirim dari antrian (sudah ditanya di telegramHandler sebelum enqueue)
-        // Untuk mode auto_* + static, generate random sebagai fallback aman
-        effectivePassword = staticPassword || generateStrongPassword();
+        // Prioritas: password dari task > password dari profil user > generate random
+        effectivePassword = staticPassword || userData.staticPassword || generateStrongPassword();
     } else {
         // Mode random: generate baru setiap task
         effectivePassword = generateStrongPassword();
@@ -56,14 +57,22 @@ async function handleAccountTask(task) {
 
     let currentEmail = email;
     let token = null;
-    let purchaseId = null;
-
-    if (mode === 'auto_signup' || mode === 'auto_autopay') {
+    let purchaseId = null;    if (mode === 'auto_signup' || mode === 'auto_autopay') {
         const maxLuckRetries = 3;
         for (let attempt = 1; attempt <= maxLuckRetries; attempt++) {
             try {
-                telegramHandler.updateStatusFor(chatId, `🛍️ <b>Membeli Email via LuckMail...</b>${attempt > 1 ? ` (Retry ${attempt}/${maxLuckRetries})` : ''}`);
-                const purchase = await luckMailApi.purchaseEmail();
+                const providerName = isTMail ? 'T-Mail' : 'LuckMail';
+                telegramHandler.updateStatusFor(chatId, `🛍️ <b>Membeli Email via ${providerName}...</b>${attempt > 1 ? ` (Retry ${attempt}/${maxLuckRetries})` : ''}`);
+                
+                let purchase;
+                if (isTMail) {
+                    purchase = await tMailApi.generateEmail();
+                    // T-Mail returns { email, token } where token = email
+                    purchase.purchaseId = null; // T-Mail tidak punya purchaseId
+                } else {
+                    purchase = await luckMailApi.purchaseEmail();
+                }
+                
                 currentEmail = purchase.email;
                 token = purchase.token;
                 purchaseId = purchase.purchaseId;
@@ -71,10 +80,11 @@ async function handleAccountTask(task) {
                 break; // Sukses, keluar dari loop retry
             } catch (e) {
                 if (attempt === maxLuckRetries) {
-                    telegramHandler.updateStatusFor(chatId, `🚫 <b>LUCKMAIL FAILED</b>\n${e.message}`);
-                    return { success: false, email: '', error: `LuckMail: ${e.message}` };
+                    const providerName = isTMail ? 'T-MAIL' : 'LUCKMAIL';
+                    telegramHandler.updateStatusFor(chatId, `🚳 <b>${providerName} FAILED</b>\n${e.message}`);
+                    return { success: false, email: '', error: `${providerName}: ${e.message}`, mailProvider };
                 }
-                logger.warn(`LuckMail attempt ${attempt} failed: ${e.message}. Retrying in 5s...`);
+                logger.warn(`Email purchase attempt ${attempt} failed: ${e.message}. Retrying in 5s...`);
                 await new Promise(r => setTimeout(r, 5000));
             }
         }
@@ -138,9 +148,14 @@ async function handleAccountTask(task) {
     let otpFnProxy;
     if (mode.startsWith('auto_')) {
         otpFnProxy = async () => {
-            logger.info(`[#${threadId}] Menunggu OTP dari LuckMail untuk ${currentEmail}...`);
-            const code = await luckMailApi.fetchVerificationCode(token, currentEmail);
-            if (!code) throw new Error("Timeout mengambil OTP dari LuckMail");
+            logger.info(`[#${threadId}] Menunggu OTP dari ${isTMail ? 'T-Mail' : 'LuckMail'} untuk ${currentEmail}...`);
+            let code;
+            if (isTMail) {
+                code = await tMailApi.fetchVerificationCode(token, currentEmail);
+            } else {
+                code = await luckMailApi.fetchVerificationCode(token, currentEmail);
+            }
+            if (!code) throw new Error(`Timeout mengambil OTP dari ${isTMail ? 'T-Mail' : 'LuckMail'}`);
             return code;
         };
     } else {
@@ -159,7 +174,7 @@ async function handleAccountTask(task) {
                 if (!acc || !acc.accessToken) {
                     telegramHandler.updateStatusFor(chatId, `⚠️ <b>SESSION EXPIRED</b>\nData akun atau Access Token tidak (lagi) tersedia di database.`);
                     if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
-                    return { success: false, email: currentEmail, error: 'Session expired / Access Token tidak ada' };
+                    return { success: false, email: currentEmail, error: 'Session expired / Access Token tidak ada', mailProvider };
                 }
                 
                 const autopay = new ChatGPTAutopay({
@@ -194,6 +209,7 @@ async function handleAccountTask(task) {
                     password: effectivePassword, 
                     refreshToken,
                     mailToken: token,
+                    mailProvider,
                     accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
                 };
             } else if (mode === 'signup' || mode === 'autopay' || mode === 'auto_signup' || mode === 'auto_autopay') {
@@ -214,7 +230,7 @@ async function handleAccountTask(task) {
                     if (purchaseId) luckMailApi.cancelEmail(purchaseId);
                     if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
                     telegramHandler.updateStatusFor(chatId, `🚫 <b>REGISTRATION FAILED</b>\n━━━━━━━━━━━━━━━━━━\n⚠️ Reason: <code>${sRes.error}</code>`);
-                    return { success: false, email: currentEmail, error: sRes.error };
+                    return { success: false, email: currentEmail, error: sRes.error, mailProvider };
                 }
 
                 let refreshToken = null;
@@ -237,7 +253,7 @@ async function handleAccountTask(task) {
                     // activeSlot is now mandatory
                     if (!activeSlot) {
                         telegramHandler.updateStatusFor(chatId, `⚠️ <b>POOL SIBUK</b>\nRegistrasi berhasil, tapi slot GoPay tidak tersedia. Silakan lakukan Retry Autopay nanti.`);
-                        return { success: false, email: currentEmail, password: effectivePassword, accountType: 'Free', error: "GoPay Pool Not Available" };
+                        return { success: false, email: currentEmail, password: effectivePassword, accountType: 'Free', error: "GoPay Pool Not Available", mailProvider };
                     }
 
                     const autopay = new ChatGPTAutopay({
@@ -271,18 +287,19 @@ async function handleAccountTask(task) {
                         password: effectivePassword, 
                         refreshToken,
                         mailToken: token,
+                        mailProvider,
                         accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
                     };
                 } else {
                     if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
                     telegramHandler.updateStatusFor(chatId, `✅ <b>REGISTRATION SUCCESS</b>\n━━━━━━━━━━━━━━━━━━\n📧 Email: <code>${currentEmail}</code>\n🔑 Password: <code>${effectivePassword}</code>\n💎 Mode: <b>Signup Only</b>`);
-                    return { success: true, email: currentEmail, password: effectivePassword, accountType: 'Free', mailToken: token };
+                    return { success: true, email: currentEmail, password: effectivePassword, accountType: 'Free', mailToken: token, mailProvider };
                 }
             } else if (mode === 'login_autopay' || mode === 'auto_loginpay') {
                 logger.info(`Proses Login + Autopay...`);
                 if (!activeSlot) {
                     telegramHandler.updateStatusFor(chatId, `⚠️ <b>POOL SIBUK</b>\nAutopay tidak dapat dilanjutkan karena slot GoPay tidak tersedia.`);
-                    return { success: false, error: "GoPay Pool Not Available" };
+                    return { success: false, error: "GoPay Pool Not Available", mailProvider };
                 }
 
                 const autopay = new ChatGPTAutopay({
@@ -316,6 +333,7 @@ async function handleAccountTask(task) {
                     password: effectivePassword, 
                     refreshToken,
                     mailToken: token,
+                    mailProvider,
                     accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
                 };
             }
@@ -326,7 +344,7 @@ async function handleAccountTask(task) {
         if (purchaseId) luckMailApi.cancelEmail(purchaseId);
         if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(()=>{});
         telegramHandler.updateStatusFor(chatId, `🔥 <b>SYSTEM CRITICAL ERROR</b>\n━━━━━━━━━━━━━━━━━━\n<code>${err.message}</code>`);
-        return { success: false, email: currentEmail, error: err.message };
+        return { success: false, email: currentEmail, error: err.message, mailProvider };
     } finally {
         try {
             await localCycleTLS.exit();
@@ -410,6 +428,11 @@ async function main() {
     // Logger info can remain global, but status updates are per-chat so we don't bind global logger to telegram status
     // Telegram will just log general errors to console
     logger.info('🛰️  <b>SYSTEM ONLINE</b>\nBot siap menerima request multi-user...');
+
+    // Recovery: kirim batch progress yang belum selesai dari session sebelumnya
+    setTimeout(() => {
+        telegramHandler.recoverPendingBatchReports();
+    }, 3000);
 }
 
 // Handle internal restart signals from telegramHandler

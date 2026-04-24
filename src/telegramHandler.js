@@ -8,6 +8,35 @@ const workerPool = require('./workerPool');
 const logger = require('./utils/logger');
 const { isValidPassword } = require('./utils/passwordGenerator');
 
+// Folder khusus untuk menyimpan file report agar tidak hilang
+const REPORTS_DIR = path.join(process.cwd(), 'reports');
+if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
+
+// Batch progress file helpers — persist ke disk agar tidak hilang saat crash
+function getBatchProgressPath(chatId) {
+    return path.join(REPORTS_DIR, `batch_progress_${chatId}.json`);
+}
+function saveBatchProgress(chatId, results) {
+    try {
+        fs.writeFileSync(getBatchProgressPath(chatId), JSON.stringify(results, null, 2), 'utf8');
+    } catch (e) {
+        logger.error(`[Batch] Gagal simpan progress batch ${chatId}: ${e.message}`);
+    }
+}
+function loadBatchProgress(chatId) {
+    const filePath = getBatchProgressPath(chatId);
+    if (fs.existsSync(filePath)) {
+        try {
+            return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        } catch (e) { return []; }
+    }
+    return [];
+}
+function clearBatchProgress(chatId) {
+    const filePath = getBatchProgressPath(chatId);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+}
+
 const asyncLocalStorage = new AsyncLocalStorage();
 
 let bot = null;
@@ -62,6 +91,7 @@ function setRestartCallback(fn) {
 const MENU_COMMANDS = new Set([
     '/start', 'menu', 'p',
     '🤖 Auto Daftar (LuckMail)',
+    '📬 Auto Daftar (T-Mail)',
     '✨ Daftar Akun Baru',
     '🔑 Login Akun',
     '⚙️ Edit Data Saya',
@@ -73,6 +103,7 @@ const mainMenuKeyboard = {
     reply_markup: {
         keyboard: [
             ['🤖 Auto Daftar (LuckMail)'],
+            ['📬 Auto Daftar (T-Mail)'],
             ['✨ Daftar Akun Baru', '🔑 Login Akun'],
             ['⚙️ Edit Data Saya', '📊 Status Server'],
             ['❓ Bantuan']
@@ -280,6 +311,20 @@ function initTelegram() {
                 return;
             }
 
+            if (text === '📬 Auto Daftar (T-Mail)') {
+                if (workerPool.isUserActive(chatId)) {
+                    bot.sendMessage(chatId, "❌ <b>Proses Anda masih berjalan.</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    return;
+                }
+                const buttons = [
+                    [{ text: "📝 Auto Signup Only", callback_data: `tmail_auto_signup` }],
+                    [{ text: "💳 Auto Signup + Autopay", callback_data: `tmail_auto_autopay` }],
+                    [{ text: "🔑 Auto Login + Autopay", callback_data: `tmail_auto_loginpay` }]
+                ];
+                bot.sendMessage(chatId, `📬 <b>Mode Otomatis (T-Mail)</b>\n━━━━━━━━━━━━━━━━━━\nSistem akan generate email via ZYVENOX T-Mail dan mengerjakan proses hingga selesai tanpa input manual.\n\nSilakan pilih mode:`, { parse_mode: "HTML", reply_markup: { inline_keyboard: buttons }});
+                return;
+            }
+
             if (text === '🔑 Login Akun') {
                 const email = await askTelegramUser(chatId, "Masukkan <b>Alamat Email</b> akun lama:", "<b>[#LOGIN]</b> ");
                 if (!validateEmail(email)) {
@@ -414,7 +459,24 @@ function initTelegram() {
                 bot.answerCallbackQuery(query.id);
                 bot.deleteMessage(chatId, query.message.message_id).catch(()=>{});
                 db.saveUser(chatId, { passwordMode: 'static' });
-                bot.sendMessage(chatId, "✅ <b>Mode Password: Manual (Static)</b>\nSetiap memulai proses, Anda akan diminta memasukkan password akun ChatGPT.", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                
+                // Langsung tanya password yang ingin dipakai
+                let isValid = false;
+                while (!isValid) {
+                    const inputPass = await askTelegramUser(chatId, `🔑 Masukkan <b>Password</b> yang ingin dipakai untuk semua akun:\n<i>(min. 12 karakter, huruf besar+kecil+angka)</i>`);
+                    if (!inputPass) {
+                        // User cancel
+                        bot.sendMessage(chatId, "⚠️ Password belum diset. Mode tetap Static, tapi Anda akan diminta password setiap kali memulai proses.", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                        return;
+                    }
+                    if (!isValidPassword(inputPass)) {
+                        await bot.sendMessage(chatId, "❌ <b>Password tidak memenuhi syarat.</b>\nMin. 12 karakter, huruf besar (A-Z), huruf kecil (a-z), angka (0-9).", { parse_mode: 'HTML' });
+                    } else {
+                        db.saveUser(chatId, { staticPassword: inputPass });
+                        bot.sendMessage(chatId, `✅ <b>Mode Password: Manual (Static)</b>\nPassword disimpan: <code>${inputPass}</code>\n\n<i>Password ini akan dipakai untuk semua akun yang dibuat.</i>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                        isValid = true;
+                    }
+                }
                 return;
             }
             
@@ -451,8 +513,11 @@ function initTelegram() {
             }
             
             // Mode Select (Signup / Autopay / dll)
-            if (data.startsWith('mode_')) {
-                const parts = data.split('_');
+            // Handles both mode_ (LuckMail) and tmail_ (T-Mail) prefixes
+            if (data.startsWith('mode_') || data.startsWith('tmail_')) {
+                const isTMail = data.startsWith('tmail_');
+                const stripped = isTMail ? data.replace('tmail_', 'mode_') : data;
+                const parts = stripped.split('_');
                 // The format could be "mode_signup_test@x", "mode_auto_signup", "mode_retrypay_test@x"
                 let mode = parts[1]; // signup, pay, loginpay, auto, retrypay
                 let isAuto = false;
@@ -501,7 +566,8 @@ function initTelegram() {
                 // Untuk auto_* + static, password ditanya per-task di handleAccountTask
                 
                 if (mode === 'auto_loginpay') {
-                    email = await askTelegramUser(chatId, "Masukkan <b>Alamat Email LuckMail</b> lama:", "<b>[#AUTO-LOGIN]</b> ");
+                    const providerLabel = isTMail ? 'T-Mail' : 'LuckMail';
+                    email = await askTelegramUser(chatId, `Masukkan <b>Alamat Email ${providerLabel}</b> lama:`, "<b>[#AUTO-LOGIN]</b> ");
                     if (!validateEmail(email)) {
                         bot.sendMessage(chatId, "❌ Format email tidak valid.");
                         return;
@@ -509,7 +575,7 @@ function initTelegram() {
                 }
 
                 // ── BATCH MODE: auto_autopay ──────────────────────────────
-                // Jika mode auto_autopay (LuckMail), tanya jumlah akun yang ingin dibuat
+                // Jika mode auto_autopay, tanya jumlah akun yang ingin dibuat
                 // lalu enqueue sebanyak itu. workerPool akan proses 1-per-1 otomatis (FIFO).
                 if (mode === 'auto_autopay') {
                     // Cek jika sudah ada batch berjalan/antri
@@ -525,21 +591,30 @@ function initTelegram() {
                         return;
                     }
                     // Enqueue semua tasks sekaligus; workerPool proses FIFO
-                    state.batchResults = []; // Reset penampung hasil
+                    state.batchResults = [];
                     state.batchPlusCount = 0;
                     state.batchTotalDispatched = jumlah;
-                    state.batchTarget = jumlah; // Target = jumlah akun PLUS yang diinginkan
-                    state.isBatchMode = true; 
+                    state.batchTarget = jumlah;
+                    state.isBatchMode = true;
+                    clearBatchProgress(chatId); // Reset progress file lama
+                    const batchMode = isTMail ? 'auto_autopay' : 'auto_autopay';
+                    const mailProvider = isTMail ? 'tmail' : 'luckmail';
                     for (let bIdx = 0; bIdx < jumlah; bIdx++) {
-                        workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay' });
+                        workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: batchMode, mailProvider });
                     }
-                    updateStatusFor(chatId,
-                        `📥 <b>Batch Antrian Ditambahkan</b>\n` +
-                        `🎯 Target: <b>${jumlah} akun PLUS</b>\n` +
-                        `💳 Mode: <b>Auto Signup + Autopay</b>\n` +
-                        `<i>Bot akan terus membuat akun baru sampai ${jumlah} akun berhasil PLUS...</i>`,
-                        { email: 'AUTO-BATCH', mode: 'auto_autopay' }, true
-                    );
+                    const providerName = isTMail ? 'T-Mail' : 'LuckMail';
+                    const batchInitText = `📊 <b>BATCH MODE (${providerName})</b>\n` +
+                                          `━━━━━━━━━━━━━━━━━━\n` +
+                                          `✅ Akun Plus terbuat: <b>0 / ${jumlah}</b>\n` +
+                                          `📦 Total proses: <b>0</b>\n` +
+                                          `<i>Memulai batch...</i>`;
+                    const reply_markup = { inline_keyboard: [[{ text: "🛑 Batalkan Batch", callback_data: "cancel_process" }]] };
+                    bot.sendMessage(chatId, batchInitText, { parse_mode: 'HTML', reply_markup }).then(sent => {
+                        if (sent) {
+                            state.lastStatusMessageId = sent.message_id;
+                            state.dashboardObscured = false;
+                        }
+                    }).catch(() => {});
                     return;
                 }
                 // ────────────────────────────────────────────────────────────
@@ -549,7 +624,8 @@ function initTelegram() {
                 if (mode === 'loginpay') mappedMode = 'login_autopay';
                 if (mode === 'pay') mappedMode = 'autopay';
                 
-                const pos = workerPool.enqueueTask({ userId: chatId, chatId, email, mode: mappedMode, staticPassword: staticPass });
+                const mailProvider = isTMail ? 'tmail' : 'luckmail';
+                const pos = workerPool.enqueueTask({ userId: chatId, chatId, email, mode: mappedMode, staticPassword: staticPass, mailProvider });
                 
                 updateStatusFor(chatId, `📥 <b>Antrian Ditambahkan</b>\n📧 Email: <code>${email || 'AUTO-DRAFT'}</code>\n📊 Urutan: ${pos}\n<i>Menunggu giliran pemrosesan...</i>`, { email: email || 'Menunggu API', mode: mappedMode }, true);
                 
@@ -612,6 +688,11 @@ function updateStatusFor(chatId, text, accountInfo = null, isQueued = false) {
     chatId = chatId.toString();
     const state = getUserState(chatId);
 
+    // Batch mode: hanya tampilkan message awal (isQueued), skip semua update proses individual
+    if (state.isBatchMode && !isQueued) {
+        return;
+    }
+
     state.messageQueue.push({ text, accountInfo, isQueued });
     processUserMessageQueue(chatId);
 }
@@ -623,8 +704,6 @@ async function sendAccountJsonFile(chatId, results) {
     if (!bot || !results || results.length === 0) return;
     try {
         const ts = new Date().getTime();
-        const fileName = `account_${ts}.json`;
-        const filePath = path.join(process.cwd(), fileName);
 
         const formattedData = {};
         let plusCount = 0;
@@ -647,8 +726,9 @@ async function sendAccountJsonFile(chatId, results) {
         }
 
         // Tulis TXT format email ---- password ---- type ---- tokenMail
+        // Simpan ke folder reports/ agar tidak hilang
         const txtFileName = `${plusCount}_plus_at_${ts}.txt`;
-        const txtFilePath = path.join(process.cwd(), txtFileName);
+        const txtFilePath = path.join(REPORTS_DIR, txtFileName);
         const txtContent = Object.values(formattedData)
             .map((acc, i) => `${acc.email} ---- ${acc.password} ---- ${acc.accountType} ---- ${acc.mailToken}`)
             .join('\n');
@@ -662,12 +742,8 @@ async function sendAccountJsonFile(chatId, results) {
         await bot.sendMessage(chatId, caption, { parse_mode: 'HTML' });
         await bot.sendDocument(chatId, txtFilePath);
 
-        // Hapus file sementara setelah 30 detik
-        setTimeout(() => {
-            if (fs.existsSync(txtFilePath)) fs.unlinkSync(txtFilePath);
-        }, 30000);
-
-        logger.info(`[Bot] File TXT akun berhasil dikirim ke ${chatId} (${plusCount} akun Plus)`);
+        // File TIDAK dihapus — disimpan permanen di folder reports/
+        logger.info(`[Bot] File TXT akun berhasil dikirim ke ${chatId} (${plusCount} akun Plus) → ${txtFileName}`);
     } catch (err) {
         logger.error('[Bot] Gagal kirim file akun: ' + err.message);
         bot.sendMessage(chatId, '⚠️ Gagal mengirim file laporan.').catch(() => {});
@@ -691,14 +767,50 @@ function handleTaskResult(chatId, result) {
         if (isPlus) {
             state.batchPlusCount++;
             logger.info(`[Bot] Akun Plus ke-${state.batchPlusCount}/${state.batchTarget} berhasil (${chatId})`);
+            // Persist batch progress ke disk agar tidak hilang saat crash
+            saveBatchProgress(chatId, state.batchResults.filter(r => r && r.accountType === 'Plus'));
         } else {
             // Task gagal jadi Plus → enqueue 1 task pengganti jika target belum tercapai
             if (state.batchPlusCount < state.batchTarget) {
                 logger.warn(`[Bot] Task gagal (bukan Plus), mengantrikan pengganti untuk ${chatId}...`);
                 state.batchTotalDispatched++;
-                workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay' });
+                // Preserve mailProvider dari task sebelumnya
+                const mailProvider = result.mailProvider || 'luckmail';
+                workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay', mailProvider });
             }
         }
+
+        // Update dashboard sederhana: cuma counter akun Plus
+        const failCount = state.batchTotalDispatched - state.batchPlusCount - (state.batchTarget - state.batchPlusCount);
+        const batchText = `📊 <b>BATCH MODE</b>\n` +
+                          `━━━━━━━━━━━━━━━━━━\n` +
+                          `✅ Akun Plus terbuat: <b>${state.batchPlusCount} / ${state.batchTarget}</b>\n` +
+                          `📦 Total proses: <b>${state.batchResults.length}</b>\n` +
+                          `<i>Sedang berjalan...</i>`;
+
+        // Kirim langsung tanpa melalui filter batch di updateStatusFor
+        if (bot) {
+            const batchState = getUserState(chatId);
+            const reply_markup = { inline_keyboard: [[{ text: "🛑 Batalkan Batch", callback_data: "cancel_process" }]] };
+            if (batchState.lastStatusMessageId) {
+                bot.editMessageText(batchText, {
+                    chat_id: chatId,
+                    message_id: batchState.lastStatusMessageId,
+                    parse_mode: 'HTML',
+                    reply_markup
+                }).catch(async (err) => {
+                    if (!err.message.includes('message is not modified')) {
+                        const sent = await bot.sendMessage(chatId, batchText, { parse_mode: 'HTML', reply_markup }).catch(() => null);
+                        if (sent) batchState.lastStatusMessageId = sent.message_id;
+                    }
+                });
+            } else {
+                bot.sendMessage(chatId, batchText, { parse_mode: 'HTML', reply_markup }).then(sent => {
+                    if (sent) batchState.lastStatusMessageId = sent.message_id;
+                }).catch(() => {});
+            }
+        }
+
         checkAndSendBatchReport(chatId);
     } else {
         // Mode Single: kirim JSON langsung setelah jeda singkat (beri waktu status dashboard diupdate)
@@ -726,6 +838,7 @@ async function checkAndSendBatchReport(chatId) {
         state.batchTarget = 0;
         state.batchPlusCount = 0;
         state.batchTotalDispatched = 0;
+        clearBatchProgress(chatId); // Bersihkan file progress setelah batch selesai
 
         // Kirim ringkasan batch
         const summaryMsg = `📊 <b>BATCH COMPLETED</b>\n` +
@@ -891,6 +1004,32 @@ async function processUserMessageQueue(chatId) {
     state.isQueueProcessing = false;
 }
 
+/**
+ * Recovery: Cek apakah ada batch progress file yang belum dikirim ke user saat bot restart.
+ * Dipanggil saat startup (dari index.js).
+ */
+function recoverPendingBatchReports() {
+    if (!bot) return;
+    try {
+        const files = fs.readdirSync(REPORTS_DIR).filter(f => f.startsWith('batch_progress_') && f.endsWith('.json'));
+        for (const file of files) {
+            const chatId = file.replace('batch_progress_', '').replace('.json', '');
+            const results = loadBatchProgress(chatId);
+            if (results && results.length > 0) {
+                logger.info(`[Recovery] Ditemukan ${results.length} akun dari batch yang belum dikirim ke ${chatId}. Mengirim sekarang...`);
+                sendAccountJsonFile(chatId, results).then(() => {
+                    clearBatchProgress(chatId);
+                    bot.sendMessage(chatId, `🔄 <b>RECOVERY</b>\nBot baru saja restart. Ditemukan ${results.length} akun Plus dari batch sebelumnya yang belum dikirim. File sudah dikirim ulang di atas.`, { parse_mode: 'HTML', ...mainMenuKeyboard }).catch(() => {});
+                }).catch(err => {
+                    logger.error(`[Recovery] Gagal kirim recovery batch untuk ${chatId}: ${err.message}`);
+                });
+            }
+        }
+    } catch (e) {
+        logger.error(`[Recovery] Error saat recovery batch: ${e.message}`);
+    }
+}
+
 module.exports = {
     initTelegram,
     askTelegramUser,
@@ -900,5 +1039,6 @@ module.exports = {
     setRestartCallback,
     stopTelegram,
     asyncLocalStorage,
-    getUserState
+    getUserState,
+    recoverPendingBatchReports
 };
