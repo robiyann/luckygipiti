@@ -6,6 +6,7 @@ const path = require('path');
 const db = require('./db');
 const workerPool = require('./workerPool');
 const logger = require('./utils/logger');
+const { isValidPassword } = require('./utils/passwordGenerator');
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
@@ -289,15 +290,24 @@ function initTelegram() {
                     bot.sendMessage(chatId, "❌ <b>Proses Anda masih berjalan.</b>\nTunggu proses sebelumnya selesai.", { parse_mode: 'HTML', ...mainMenuKeyboard });
                     return;
                 }
-                
-                // Cek syarat data untuk login_autopay
-                const uData = db.getUser(chatId);
-                if (!uData.password || typeof uData.gopayPhone === 'undefined' || typeof uData.gopayPin === 'undefined' || !uData.gopayPhone || !uData.gopayPin) {
-                    bot.sendMessage(chatId, "⚠️ <b>Data Tidak Lengkap</b>\nUntuk mode Login + Autopay, Anda wajib melengkapi: Password, Nomor GoPay, dan PIN GoPay di menu ⚙️ Edit Data Saya.", { parse_mode: 'HTML', ...mainMenuKeyboard });
-                    return;
+
+                // Tanya password jika mode static
+                const uDataLogin = db.getUser(chatId);
+                let staticPassLogin = null;
+                if (uDataLogin.passwordMode === 'static') {
+                    let isValid = false;
+                    while (!isValid) {
+                        staticPassLogin = await askTelegramUser(chatId, `🔑 Masukkan <b>Password</b> untuk akun <code>${email}</code>:\n<i>(min. 12 karakter, huruf besar+kecil+angka)</i>`);
+                        if (!staticPassLogin) return;
+                        if (!isValidPassword(staticPassLogin)) {
+                            await bot.sendMessage(chatId, "❌ <b>Password tidak memenuhi syarat.</b>\nMin. 12 karakter, huruf besar (A-Z), huruf kecil (a-z), angka (0-9).", { parse_mode: 'HTML' });
+                        } else {
+                            isValid = true;
+                        }
+                    }
                 }
 
-                const pos = workerPool.enqueueTask({ userId: chatId, chatId, email, mode: 'login_autopay' });
+                const pos = workerPool.enqueueTask({ userId: chatId, chatId, email, mode: 'login_autopay', staticPassword: staticPassLogin });
                 if (pos > 0) {
                     bot.sendMessage(chatId, `📥 <b>Masuk Antrian</b>\nUrutan Anda: ${pos}\n<i>Menunggu persetujuan slot aktif...</i>`, { parse_mode: 'HTML' });
                 }
@@ -356,7 +366,7 @@ function initTelegram() {
                     bot.sendMessage(chatId, `✅ Berhasil setujui User ${tarId}.`);
                     
                     // Notify target user
-                    bot.sendMessage(tarId, "🎉 <b>Akses Disetujui!</b>\n\nSekarang Anda bisa mendaftar/login akun ChatGPT.\n⚠️ <i>Pastikan mengisi Password, No GoPay & PIN GoPay di menu 'Edit Data Saya' sebelum memilih mode Autopay.</i>", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    bot.sendMessage(tarId, "🎉 <b>Akses Disetujui!</b>\n\nSekarang Anda bisa mendaftar/login akun ChatGPT.\n⚠️ <i>Sebelum memulai, atur mode password Anda di menu ⚙️ Edit Data Saya.</i>", { parse_mode: 'HTML', ...mainMenuKeyboard });
                 } else if (action === 'reject') {
                     db.rejectUser(tarId);
                     bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id });
@@ -370,37 +380,41 @@ function initTelegram() {
             const userData = db.getUser(chatId);
 
             // User Settings Edit Menu
-            if (data === 'edit_password' || data === 'edit_gopay_phone' || data === 'edit_gopay_pin') {
+            if (data === 'edit_password') {
                 bot.answerCallbackQuery(query.id);
                 bot.deleteMessage(chatId, query.message.message_id).catch(()=>{});
-                
-                if (data === 'edit_password') {
-                    let isValid = false;
-                    while (!isValid) {
-                        const pass = await askTelegramUser(chatId, "Masukkan <b>Password Master</b> baru untuk akun ChatGPT:\n<i>(Wajib min. 12 karakter, kombinasi huruf besar, huruf kecil, & angka)</i>");
-                        if (!pass) break; // User clicked 'cancel'
-                        
-                        if (pass.length < 12 || !/[A-Z]/.test(pass) || !/[a-z]/.test(pass) || !/[0-9]/.test(pass)) {
-                            await bot.sendMessage(chatId, "❌ <b>Password Tidak Memenuhi Syarat!</b>\nHarap buat password yang lebih kuat:\n- Minimal 12 karakter\n- Mengandung huruf besar (A-Z)\n- Mengandung huruf kecil (a-z)\n- Mengandung angka (0-9)", { parse_mode: 'HTML' });
-                        } else {
-                            isValid = true;
-                            db.saveUser(chatId, { password: pass });
-                            bot.sendMessage(chatId, "✅ Password master diperbarui.", mainMenuKeyboard);
+                bot.sendMessage(chatId,
+                    `🔑 <b>Mode Password Akun</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `Pilih cara password akun ChatGPT dibuat:\n\n` +
+                    `🔄 <b>Otomatis (Random)</b> — sistem generate password unik setiap proses.\n` +
+                    `🔑 <b>Manual (Static)</b> — Anda diminta input password setiap memulai proses.`,
+                    {
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [{ text: "🔄 Generate Otomatis (Random)", callback_data: "set_pass_random" }],
+                                [{ text: "🔑 Input Manual (Static)", callback_data: "set_pass_static" }],
+                                [{ text: "❌ Batal", callback_data: "show_main_menu" }]
+                            ]
                         }
                     }
-                } else if (data === 'edit_gopay_phone') {
-                    const phone = await askTelegramUser(chatId, "Masukkan <b>Nomor GoPay</b> baru (format bebas):");
-                    if(phone) {
-                        db.saveUser(chatId, { gopayPhone: phone });
-                        bot.sendMessage(chatId, "✅ Nomor GoPay diperbarui.", mainMenuKeyboard);
-                    }
-                } else if (data === 'edit_gopay_pin') {
-                    const pin = await askTelegramUser(chatId, "Masukkan <b>PIN GoPay</b> baru (6 digit angka):");
-                    if(pin) {
-                        db.saveUser(chatId, { gopayPin: pin });
-                        bot.sendMessage(chatId, "✅ PIN GoPay diperbarui.", mainMenuKeyboard);
-                    }
-                }
+                );
+                return;
+            }
+
+            if (data === 'set_pass_random') {
+                bot.answerCallbackQuery(query.id);
+                bot.deleteMessage(chatId, query.message.message_id).catch(()=>{});
+                db.saveUser(chatId, { passwordMode: 'random' });
+                bot.sendMessage(chatId, "✅ <b>Mode Password: Otomatis (Random)</b>\nSistem akan men-generate password unik setiap proses.", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                return;
+            }
+
+            if (data === 'set_pass_static') {
+                bot.answerCallbackQuery(query.id);
+                bot.deleteMessage(chatId, query.message.message_id).catch(()=>{});
+                db.saveUser(chatId, { passwordMode: 'static' });
+                bot.sendMessage(chatId, "✅ <b>Mode Password: Manual (Static)</b>\nSetiap memulai proses, Anda akan diminta memasukkan password akun ChatGPT.", { parse_mode: 'HTML', ...mainMenuKeyboard });
                 return;
             }
             
@@ -464,18 +478,27 @@ function initTelegram() {
 
                 const uData = db.getUser(chatId);
 
-                // Validation
-                if (mode.includes('signup') && !mode.includes('autopay')) {
-                    if (!uData.password) {
-                        bot.sendMessage(chatId, "⚠️ <b>Data Tidak Lengkap</b>\nUntuk mode Signup Only, Anda wajib mengisi <b>Password Master</b> di menu ⚙️ Edit Data Saya.", { parse_mode: "HTML", ...mainMenuKeyboard });
-                        return;
-                    }
-                } else if (mode.includes('pay')) {
-                    if (!uData.password || typeof uData.gopayPhone === 'undefined' || typeof uData.gopayPin === 'undefined' || !uData.gopayPhone || !uData.gopayPin) {
-                        bot.sendMessage(chatId, "⚠️ <b>Data Tidak Lengkap</b>\nUntuk mode Autopay, Anda wajib melengkapi <b>Password, Nomor GoPay, &amp; PIN GoPay</b> di menu ⚙️ Edit Data Saya.", { parse_mode: "HTML", ...mainMenuKeyboard });
-                        return;
+                // Validation: cek passwordMode sudah diset
+                if (!uData.passwordMode) {
+                    bot.sendMessage(chatId, "⚠️ <b>Mode Password Belum Diset</b>\nSilakan pilih mode password di menu ⚙️ Edit Data Saya → 🔑 Ganti Mode Password.", { parse_mode: "HTML", ...mainMenuKeyboard });
+                    return;
+                }
+
+                // Tanya password sebelum masuk antrian jika mode static (hanya mode non-auto)
+                let staticPass = null;
+                if (uData.passwordMode === 'static' && !mode.startsWith('auto_')) {
+                    let isValid = false;
+                    while (!isValid) {
+                        staticPass = await askTelegramUser(chatId, `🔑 Masukkan <b>Password</b> untuk akun <code>${email || 'baru'}</code>:\n<i>(min. 12 karakter, huruf besar+kecil+angka)</i>`);
+                        if (!staticPass) return;
+                        if (!isValidPassword(staticPass)) {
+                            await bot.sendMessage(chatId, "❌ <b>Password tidak memenuhi syarat.</b>\nMin. 12 karakter, huruf besar (A-Z), huruf kecil (a-z), angka (0-9).", { parse_mode: 'HTML' });
+                        } else {
+                            isValid = true;
+                        }
                     }
                 }
+                // Untuk auto_* + static, password ditanya per-task di handleAccountTask
                 
                 if (mode === 'auto_loginpay') {
                     email = await askTelegramUser(chatId, "Masukkan <b>Alamat Email LuckMail</b> lama:", "<b>[#AUTO-LOGIN]</b> ");
@@ -526,7 +549,7 @@ function initTelegram() {
                 if (mode === 'loginpay') mappedMode = 'login_autopay';
                 if (mode === 'pay') mappedMode = 'autopay';
                 
-                const pos = workerPool.enqueueTask({ userId: chatId, chatId, email, mode: mappedMode });
+                const pos = workerPool.enqueueTask({ userId: chatId, chatId, email, mode: mappedMode, staticPassword: staticPass });
                 
                 updateStatusFor(chatId, `📥 <b>Antrian Ditambahkan</b>\n📧 Email: <code>${email || 'AUTO-DRAFT'}</code>\n📊 Urutan: ${pos}\n<i>Menunggu giliran pemrosesan...</i>`, { email: email || 'Menunggu API', mode: mappedMode }, true);
                 
@@ -542,19 +565,19 @@ function initTelegram() {
 }
 
 function sendSettingsMenu(chatId, userData) {
-    const text = `⚙️ <b>Edit Data Saya</b>\n\n` + 
-                 `🔑 <b>Password:</b> <code>${userData.password ? 'Tersimpan' : 'Kosong'}</code>\n`+
-                 `📱 <b>GoPay:</b> <code>${userData.gopayPhone ? userData.gopayPhone.slice(0,4) + '****' + userData.gopayPhone.slice(-3) : 'Kosong'}</code>\n`+
-                 `🔢 <b>PIN:</b> <code>****</code>\n\n`+
+    const modeLabel = userData.passwordMode === 'random' ? '🔄 Otomatis (Random)'
+                    : userData.passwordMode === 'static' ? '🔑 Manual (Static)'
+                    : '⚠️ Belum diset';
+    const text = `⚙️ <b>Edit Data Saya</b>\n\n` +
+                 `🔑 <b>Mode Password:</b> <code>${modeLabel}</code>\n` +
+                 `<i>Password dibuat ${userData.passwordMode === 'random' ? 'otomatis setiap proses' : userData.passwordMode === 'static' ? 'dari input Anda setiap proses' : '— silakan set dulu'}</i>\n\n` +
                  `Silakan pilih apa yang ingin diubah:`;
                  
     bot.sendMessage(chatId, text, {
         parse_mode: 'HTML',
         reply_markup: {
             inline_keyboard: [
-                [{ text: "🔑 Ganti Password", callback_data: "edit_password" }],
-                [{ text: "📱 Ganti No. GoPay", callback_data: "edit_gopay_phone" }],
-                [{ text: "🔢 Ganti PIN GoPay", callback_data: "edit_gopay_pin" }],
+                [{ text: "🔑 Ganti Mode Password", callback_data: "edit_password" }],
                 [{ text: "❌ Tutup", callback_data: "show_main_menu" }]
             ]
         }

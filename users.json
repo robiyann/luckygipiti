@@ -2,19 +2,11 @@
   "6276972957": {
     "status": "approved",
     "firstName": "ROBIYAN #BAGIDUA",
-    "registeredAt": "2026-04-19T13:27:30.638Z",
-    "approvedAt": "2026-04-19T13:27:33.557Z",
-    "password": "LJhwk966hhsa",
-    "gopayPhone": "85848101010",
-    "gopayPin": "120402"
-  },
-  "8320610696": {
-    "status": "approved",
-    "firstName": "Raymond",
-    "registeredAt": "2026-04-19T13:43:37.324Z",
-    "approvedAt": "2026-04-19T13:43:45.082Z",
-    "password": "Premiumz1234",
-    "gopayPhone": "85848101010",
-    "gopayPin": "120402"
+    "registeredAt": "2026-04-24T03:35:02.945Z",
+    "approvedAt": "2026-04-24T03:35:04.207Z",
+    "password": "Langin@12345",
+    "gopayPhone": "89523042824",
+    "gopayPin": "120402",
+    "passwordMode": "random"
   }
 }

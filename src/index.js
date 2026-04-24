@@ -10,6 +10,7 @@ const initCycleTLS = require("cycletls");
 const logger = require("./utils/logger");
 const luckMailApi = require("./utils/luckMailApi");
 const { claimGopaySlot, releaseGopaySlot, triggerMacrodroidWebhook, resetAllGopaySlots } = require("./utils/gopayOtpFetcher");
+const { generateStrongPassword } = require("./utils/passwordGenerator");
 
 const db = require("./db");
 const workerPool = require("./workerPool");
@@ -21,7 +22,7 @@ const audience = "https://api.openai.com/v1";
 
 // Function to run account creation task in isolation
 async function handleAccountTask(task) {
-    const { userId, chatId, email, mode } = task;
+    const { userId, chatId, email, mode, staticPassword } = task;
     
     // Fetch user settings from DB
     const userData = db.getUser(userId);
@@ -30,7 +31,18 @@ async function handleAccountTask(task) {
         return;
     }
 
-    const { password } = userData;
+    // Resolve effective password berdasarkan passwordMode user
+    let effectivePassword;
+    const passwordMode = userData.passwordMode || 'random';
+    if (passwordMode === 'static') {
+        // Password dikirim dari antrian (sudah ditanya di telegramHandler sebelum enqueue)
+        // Untuk mode auto_* + static, generate random sebagai fallback aman
+        effectivePassword = staticPassword || generateStrongPassword();
+    } else {
+        // Mode random: generate baru setiap task
+        effectivePassword = generateStrongPassword();
+    }
+
     const threadId = Math.floor(Math.random() * 900) + 100;
 
     const modeName = {
@@ -151,7 +163,7 @@ async function handleAccountTask(task) {
                 }
                 
                 const autopay = new ChatGPTAutopay({
-                    email: currentEmail, password, name, 
+                    email: currentEmail, password: effectivePassword, name, 
                     gopayPhone: finalGopayPhone, gopayPin: finalGopayPin,
                     serverNumber: finalServerNum, webhookAction: finalWebhook,
                     threadId, sharedCycleTLS: localCycleTLS,
@@ -168,7 +180,7 @@ async function handleAccountTask(task) {
                     await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                 }
 
-                await handleAutopayResult(chatId, currentEmail, password, aRes);
+                await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes);
                 // Ekstrak refresh token dari cookie jar jika ada
                 let refreshToken = null;
                 if (aRes.cookieJar) {
@@ -179,14 +191,14 @@ async function handleAccountTask(task) {
                 return { 
                     ...aRes, 
                     email: currentEmail, 
-                    password, 
+                    password: effectivePassword, 
                     refreshToken,
                     mailToken: token,
                     accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
                 };
             } else if (mode === 'signup' || mode === 'autopay' || mode === 'auto_signup' || mode === 'auto_autopay') {
                 const signup = new ChatGPTSignup({
-                    email: currentEmail, password, name, birthdate: bday.full,
+                    email: currentEmail, password: effectivePassword, name, birthdate: bday.full,
                     clientId, redirectUri, audience,
                     webmailProvider: "manual", threadId, 
                     sharedCycleTLS: localCycleTLS,
@@ -214,7 +226,7 @@ async function handleAccountTask(task) {
 
                 db.saveAccount(sRes.email, { 
                     userId, 
-                    password: sRes.password, 
+                    password: effectivePassword, 
                     accountType: 'Free', 
                     accessToken: sRes.accessToken,
                     refreshToken: refreshToken 
@@ -225,11 +237,11 @@ async function handleAccountTask(task) {
                     // activeSlot is now mandatory
                     if (!activeSlot) {
                         telegramHandler.updateStatusFor(chatId, `⚠️ <b>POOL SIBUK</b>\nRegistrasi berhasil, tapi slot GoPay tidak tersedia. Silakan lakukan Retry Autopay nanti.`);
-                        return { success: false, email: currentEmail, password, accountType: 'Free', error: "GoPay Pool Not Available" };
+                        return { success: false, email: currentEmail, password: effectivePassword, accountType: 'Free', error: "GoPay Pool Not Available" };
                     }
 
                     const autopay = new ChatGPTAutopay({
-                        email: currentEmail, password, name, 
+                        email: currentEmail, password: effectivePassword, name, 
                         gopayPhone: finalGopayPhone, gopayPin: finalGopayPin,
                         serverNumber: finalServerNum, webhookAction: finalWebhook,
                         threadId, sharedCycleTLS: localCycleTLS,
@@ -246,7 +258,7 @@ async function handleAccountTask(task) {
                         await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                     }
 
-                    await handleAutopayResult(chatId, currentEmail, password, aRes);
+                    await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes);
                     // Ekstrak refresh token dari cookie jar jika ada
                     let refreshToken = null;
                     if (aRes.cookies) {
@@ -256,15 +268,15 @@ async function handleAccountTask(task) {
                     return { 
                         ...aRes, 
                         email: currentEmail, 
-                        password, 
+                        password: effectivePassword, 
                         refreshToken,
                         mailToken: token,
                         accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
                     };
                 } else {
                     if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
-                    telegramHandler.updateStatusFor(chatId, `✅ <b>REGISTRATION SUCCESS</b>\n━━━━━━━━━━━━━━━━━━\n📧 Email: <code>${currentEmail}</code>\n🔑 Password: <code>${password}</code>\n💎 Mode: <b>Signup Only</b>`);
-                    return { success: true, email: currentEmail, password, accountType: 'Free', mailToken: token };
+                    telegramHandler.updateStatusFor(chatId, `✅ <b>REGISTRATION SUCCESS</b>\n━━━━━━━━━━━━━━━━━━\n📧 Email: <code>${currentEmail}</code>\n🔑 Password: <code>${effectivePassword}</code>\n💎 Mode: <b>Signup Only</b>`);
+                    return { success: true, email: currentEmail, password: effectivePassword, accountType: 'Free', mailToken: token };
                 }
             } else if (mode === 'login_autopay' || mode === 'auto_loginpay') {
                 logger.info(`Proses Login + Autopay...`);
@@ -274,7 +286,7 @@ async function handleAccountTask(task) {
                 }
 
                 const autopay = new ChatGPTAutopay({
-                    email: currentEmail, password, name, 
+                    email: currentEmail, password: effectivePassword, name, 
                     gopayPhone: finalGopayPhone, gopayPin: finalGopayPin,
                     serverNumber: finalServerNum, webhookAction: finalWebhook,
                     threadId, sharedCycleTLS: localCycleTLS,
@@ -290,7 +302,7 @@ async function handleAccountTask(task) {
                     await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                 }
 
-                await handleAutopayResult(chatId, currentEmail, password, aRes);
+                await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes);
                 // Ekstrak refresh token dari cookie jar jika ada
                 let refreshToken = null;
                 if (aRes.cookieJar) {
@@ -301,7 +313,7 @@ async function handleAccountTask(task) {
                 return { 
                     ...aRes, 
                     email: currentEmail, 
-                    password, 
+                    password: effectivePassword, 
                     refreshToken,
                     mailToken: token,
                     accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
