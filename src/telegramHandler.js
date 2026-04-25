@@ -568,6 +568,45 @@ function initTelegram() {
                 return;
             }
 
+            // Edit Report Format
+            if (data === 'edit_report_format') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                bot.sendMessage(chatId,
+                    `📋 <b>Format Laporan Akun</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `Pilih format file TXT yang akan dikirim bot:\n\n` +
+                    `🔑 <b>Email + Token</b> — <code>email ---- pass ---- type ---- token</code> (Lengkap)\n` +
+                    `📧 <b>Email:Password</b> — <code>email:password</code> (Hanya login)`,
+                    {
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [{ text: "🔑 Email + Token (Default)", callback_data: "set_format_tokens" }],
+                                [{ text: "📧 Email:Password Only", callback_data: "set_format_email_pw" }],
+                                [{ text: "❌ Batal", callback_data: "show_main_menu" }]
+                            ]
+                        }
+                    }
+                );
+                return;
+            }
+
+            if (data === 'set_format_tokens') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                db.saveUser(chatId, { reportFormat: 'with_tokens' });
+                bot.sendMessage(chatId, "✅ <b>Format Laporan: Email + Token</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                return;
+            }
+
+            if (data === 'set_format_email_pw') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                db.saveUser(chatId, { reportFormat: 'email_pw' });
+                bot.sendMessage(chatId, "✅ <b>Format Laporan: Email:Password</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                return;
+            }
+
             bot.answerCallbackQuery(query.id).catch(() => {});
         });
 
@@ -580,10 +619,13 @@ function sendSettingsMenu(chatId, userData) {
     const modeLabel = userData.passwordMode === 'random' ? '🔄 Otomatis (Random)'
                     : userData.passwordMode === 'static' ? '🔑 Manual (Static)'
                     : '⚠️ Belum diset';
+    const formatLabel = userData.reportFormat === 'email_pw' ? '📧 Email:Password'
+                      : '🔑 Email + Token (Default)';
     const tmailUrl = userData.tmailBaseUrl || 'https://mail.zyvenox.my.id (default)';
     const text = `⚙️ <b>Edit Data Saya</b>\n\n` +
                  `🔑 <b>Mode Password:</b> <code>${modeLabel}</code>\n` +
                  `<i>Password dibuat ${userData.passwordMode === 'random' ? 'otomatis setiap proses' : userData.passwordMode === 'static' ? 'dari input Anda setiap proses' : '— silakan set dulu'}</i>\n\n` +
+                 `📋 <b>Format Laporan:</b> <code>${formatLabel}</code>\n\n` +
                  `🌐 <b>T-Mail URL:</b> <code>${tmailUrl}</code>\n\n` +
                  `Silakan pilih apa yang ingin diubah:`;
 
@@ -592,6 +634,7 @@ function sendSettingsMenu(chatId, userData) {
         reply_markup: {
             inline_keyboard: [
                 [{ text: "🔑 Ganti Mode Password", callback_data: "edit_password" }],
+                [{ text: "📋 Ganti Format Laporan", callback_data: "edit_report_format" }],
                 [{ text: "🌐 Ganti T-Mail URL", callback_data: "edit_tmail_url" }],
                 [{ text: "❌ Tutup", callback_data: "show_main_menu" }]
             ]
@@ -664,12 +707,21 @@ async function sendAccountJsonFile(chatId, results) {
             return;
         }
 
-        // Tulis TXT format email ---- password ---- type ---- tokenMail
+        // Tulis TXT format sesuai preference user
         // Simpan ke folder reports/ agar tidak hilang
+        const uData = db.getUser(chatId);
+        const reportFormat = (uData && uData.reportFormat) || 'with_tokens';
+        
         const txtFileName = `${plusCount}_plus_at_${ts}.txt`;
         const txtFilePath = path.join(REPORTS_DIR, txtFileName);
         const txtContent = Object.values(formattedData)
-            .map((acc, i) => `${acc.email} ---- ${acc.password} ---- ${acc.accountType} ---- ${acc.mailToken}`)
+            .map((acc, i) => {
+                if (reportFormat === 'email_pw') {
+                    return `${acc.email}:${acc.password}`;
+                } else {
+                    return `${acc.email} ---- ${acc.password} ---- ${acc.accountType} ---- ${acc.mailToken}`;
+                }
+            })
             .join('\n');
         fs.writeFileSync(txtFilePath, txtContent);
 
