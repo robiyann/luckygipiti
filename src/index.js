@@ -33,6 +33,9 @@ async function handleAccountTask(task) {
         return;
     }
 
+    // Ambil T-Mail URL dari user settings (fallback ke default jika belum diset)
+    const tmailBaseUrl = userData.tmailBaseUrl || undefined;
+
     // Resolve effective password berdasarkan passwordMode user
     let effectivePassword;
     const passwordMode = userData.passwordMode || 'random';
@@ -48,8 +51,9 @@ async function handleAccountTask(task) {
 
     const modeName = {
         'autopay': 'Signup + Autopay',
-        'signup': 'Signup Only',
-        'login_autopay': 'Login + Autopay'
+        'auto_autopay': 'Auto Signup + Autopay',
+        'auto_signup': 'Auto Signup Only',
+        'retry_autopay': 'Retry Autopay'
     }[mode] || mode;
 
     const name = generateRandomName();
@@ -66,9 +70,8 @@ async function handleAccountTask(task) {
                 
                 let purchase;
                 if (isTMail) {
-                    purchase = await tMailApi.generateEmail();
-                    // T-Mail returns { email, token } where token = email
-                    purchase.purchaseId = null; // T-Mail tidak punya purchaseId
+                    purchase = await tMailApi.generateEmail(tmailBaseUrl);
+                    purchase.purchaseId = null;
                 } else {
                     purchase = await luckMailApi.purchaseEmail();
                 }
@@ -77,7 +80,7 @@ async function handleAccountTask(task) {
                 token = purchase.token;
                 purchaseId = purchase.purchaseId;
                 telegramHandler.updateStatusFor(chatId, `🛍️ <b>Email Didapat:</b> <code>${currentEmail}</code>`);
-                break; // Sukses, keluar dari loop retry
+                break;
             } catch (e) {
                 if (attempt === maxLuckRetries) {
                     const providerName = isTMail ? 'T-MAIL' : 'LUCKMAIL';
@@ -87,13 +90,6 @@ async function handleAccountTask(task) {
                 logger.warn(`Email purchase attempt ${attempt} failed: ${e.message}. Retrying in 5s...`);
                 await new Promise(r => setTimeout(r, 5000));
             }
-        }
-    } else if (mode === 'auto_loginpay') {
-        const existingOrder = db.getOrderByEmail(currentEmail);
-        token = existingOrder ? existingOrder.orderId : null;
-        if (!token) {
-            telegramHandler.updateStatusFor(chatId, `🚫 <b>ORDER NOT FOUND</b>\nTidak bisa auto poll OTP karena data email ini tak ada di riwayat bot.`);
-            return { success: false, email: currentEmail, error: 'Order/token tidak ditemukan di database' };
         }
     }
 
@@ -151,7 +147,7 @@ async function handleAccountTask(task) {
             logger.info(`[#${threadId}] Menunggu OTP dari ${isTMail ? 'T-Mail' : 'LuckMail'} untuk ${currentEmail}...`);
             let code;
             if (isTMail) {
-                code = await tMailApi.fetchVerificationCode(token, currentEmail);
+                code = await tMailApi.fetchVerificationCode(token, currentEmail, tmailBaseUrl);
             } else {
                 code = await luckMailApi.fetchVerificationCode(token, currentEmail);
             }
@@ -295,47 +291,6 @@ async function handleAccountTask(task) {
                     telegramHandler.updateStatusFor(chatId, `✅ <b>REGISTRATION SUCCESS</b>\n━━━━━━━━━━━━━━━━━━\n📧 Email: <code>${currentEmail}</code>\n🔑 Password: <code>${effectivePassword}</code>\n💎 Mode: <b>Signup Only</b>`);
                     return { success: true, email: currentEmail, password: effectivePassword, accountType: 'Free', mailToken: token, mailProvider };
                 }
-            } else if (mode === 'login_autopay' || mode === 'auto_loginpay') {
-                logger.info(`Proses Login + Autopay...`);
-                if (!activeSlot) {
-                    telegramHandler.updateStatusFor(chatId, `⚠️ <b>POOL SIBUK</b>\nAutopay tidak dapat dilanjutkan karena slot GoPay tidak tersedia.`);
-                    return { success: false, error: "GoPay Pool Not Available", mailProvider };
-                }
-
-                const autopay = new ChatGPTAutopay({
-                    email: currentEmail, password: effectivePassword, name, 
-                    gopayPhone: finalGopayPhone, gopayPin: finalGopayPin,
-                    serverNumber: finalServerNum, webhookAction: finalWebhook,
-                    threadId, sharedCycleTLS: localCycleTLS,
-                    otpFn: otpFnProxy
-                });
-
-                telegramHandler.updateStatusFor(chatId, `🔑 <b>Authenticating...</b>\n<i>Checking account credentials...</i>`);
-                const aRes = await autopay.runAutopay();
-
-                // Autopay sukses dihandle di autopay.js sepenuhnya termasuk unlink
-                // Pool cleanup: release slot
-                if (activeSlot) {
-                    await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
-                }
-
-                await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes);
-                // Ekstrak refresh token dari cookie jar jika ada
-                let refreshToken = null;
-                if (aRes.cookieJar) {
-                   const authCookies = aRes.cookieJar.store.get("auth.openai.com");
-                   if (authCookies) refreshToken = authCookies.get("__Secure-next-auth.refresh-token");
-                }
-                // Kembalikan result lengkap dengan accountType yang sudah diupdate
-                return { 
-                    ...aRes, 
-                    email: currentEmail, 
-                    password: effectivePassword, 
-                    refreshToken,
-                    mailToken: token,
-                    mailProvider,
-                    accountType: aRes.success ? 'Plus' : (aRes.accountType || 'Free') 
-                };
             }
         });
         return result;

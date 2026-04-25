@@ -9,6 +9,7 @@ const logger = require('./logger');
  * @param {string} serverNumber - ID Server/Slot (default '1')
  */
 async function fetchGopayOtp(gopayPhone, serverUrl, serverNumber = '1') {
+    const baseUrl = serverUrl.replace(/\/$/, '');
     const maxAttempts = 25;
     const delayMs = 3000;
     const phone = String(gopayPhone).replace(/^0|^\+62/, '');
@@ -18,7 +19,7 @@ async function fetchGopayOtp(gopayPhone, serverUrl, serverNumber = '1') {
     // 1. Daftar sebagai subscriber
     let requestId;
     try {
-        const subRes = await axios.post(`${serverUrl}/otp/subscribe`,
+        const subRes = await axios.post(`${baseUrl}/otp/subscribe`,
             { phone, server: String(serverNumber) },
             { timeout: 5000 }
         );
@@ -32,7 +33,7 @@ async function fetchGopayOtp(gopayPhone, serverUrl, serverNumber = '1') {
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise(resolve => setTimeout(resolve, delayMs));
         try {
-            const response = await axios.get(`${serverUrl}/otp/claim/${requestId}`, { timeout: 5000 });
+            const response = await axios.get(`${baseUrl}/otp/claim/${requestId}`, { timeout: 5000 });
             if (response.data && response.data.otp) {
                 logger.success(`[GoPay OTP] Kode ditemukan: ${response.data.otp}`);
                 return response.data.otp;
@@ -56,7 +57,8 @@ async function fetchGopayOtp(gopayPhone, serverUrl, serverNumber = '1') {
  * Trigger MacroDroid webhook via OTP server.
  */
 async function triggerMacrodroidWebhook(serverUrl, action = 'reset-link') {
-    const response = await axios.get(`${serverUrl}/trigger-hp`, {
+    const baseUrl = serverUrl.replace(/\/$/, '');
+    const response = await axios.get(`${baseUrl}/trigger-hp`, {
         params: { action },
         timeout: 5000
     });
@@ -71,6 +73,7 @@ async function triggerMacrodroidWebhook(serverUrl, action = 'reset-link') {
  * Menunggu status "reset done" dari server.
  */
 async function waitForGopayReset(serverUrl, serverNumber = '1', maxWaitSeconds = 60) {
+    const baseUrl = serverUrl.replace(/\/$/, '');
     const delayMs = 3000;
     const maxAttempts = Math.ceil((maxWaitSeconds * 1000) / delayMs);
 
@@ -78,7 +81,7 @@ async function waitForGopayReset(serverUrl, serverNumber = '1', maxWaitSeconds =
 
     for (let i = 0; i < maxAttempts; i++) {
         try {
-            const response = await axios.get(`${serverUrl}/otp`, { 
+            const response = await axios.get(`${baseUrl}/otp`, { 
                 params: { server: serverNumber },
                 timeout: 5000 
             });
@@ -101,8 +104,9 @@ async function waitForGopayReset(serverUrl, serverNumber = '1', maxWaitSeconds =
  * Claim slot dari pool OTPServer
  */
 async function claimGopaySlot(serverUrl) {
+    const baseUrl = serverUrl.replace(/\/$/, '');
     try {
-        const response = await axios.get(`${serverUrl}/gopay/claim`, { timeout: 5000 });
+        const response = await axios.get(`${baseUrl}/gopay/claim`, { timeout: 5000 });
         return response.data; // { id, phone, pin, webhook_action }
     } catch (err) {
         if (err.response && err.response.status === 503) {
@@ -116,8 +120,9 @@ async function claimGopaySlot(serverUrl) {
  * Release slot secara manual (biasanya jika autopay gagal total)
  */
 async function releaseGopaySlot(serverUrl, slotId) {
+    const baseUrl = serverUrl.replace(/\/$/, '');
     try {
-        await axios.get(`${serverUrl}/gopay/release`, { 
+        await axios.get(`${baseUrl}/gopay/release`, { 
             params: { id: slotId },
             timeout: 5000 
         });
@@ -131,8 +136,9 @@ async function releaseGopaySlot(serverUrl, slotId) {
  * Reset SEMUA slot ke available (dipanggil saat bot startup/restart)
  */
 async function resetAllGopaySlots(serverUrl) {
+    const baseUrl = serverUrl.replace(/\/$/, '');
     try {
-        const res = await axios.get(`${serverUrl}/gopay/reset-all`, { timeout: 5000 });
+        const res = await axios.get(`${baseUrl}/gopay/reset-all`, { timeout: 5000 });
         logger.info(`[Pool] Startup reset: semua slot dikembalikan ke available.`);
         return res.data;
     } catch (err) {

@@ -90,10 +90,8 @@ function setRestartCallback(fn) {
 // Semua teks tombol keyboard utama — jangan dianggap sebagai input user ketika ada prompt aktif
 const MENU_COMMANDS = new Set([
     '/start', 'menu', 'p',
-    '🤖 Auto Daftar (LuckMail)',
-    '📬 Auto Daftar (T-Mail)',
-    '✨ Daftar Akun Baru',
-    '🔑 Login Akun',
+    '🚀 Full Auto Plus',
+    '💳 Auto Pay Bot',
     '⚙️ Edit Data Saya',
     '📊 Status Server',
     '❓ Bantuan'
@@ -102,9 +100,8 @@ const MENU_COMMANDS = new Set([
 const mainMenuKeyboard = {
     reply_markup: {
         keyboard: [
-            ['🤖 Auto Daftar (LuckMail)'],
-            ['📬 Auto Daftar (T-Mail)'],
-            ['✨ Daftar Akun Baru', '🔑 Login Akun'],
+            ['🚀 Full Auto Plus'],
+            ['💳 Auto Pay Bot'],
             ['⚙️ Edit Data Saya', '📊 Status Server'],
             ['❓ Bantuan']
         ],
@@ -156,9 +153,8 @@ function getSystemDashboardText() {
     } else {
         slots.forEach((s, idx) => {
             const mMap = {
-                'login_autopay': 'LOGIN+PAY', 'auto_loginpay': 'AUTO LOGIN+PAY',
                 'autopay': 'SIGNUP+PAY', 'auto_autopay': 'AUTO SIGNUP+PAY',
-                'auto_signup': 'AUTO SIGNUP', 'signup': 'SIGNUP ONLY'
+                'auto_signup': 'AUTO SIGNUP', 'retry_autopay': 'RETRY PAY'
             };
             const modeName = mMap[s.mode] || s.mode.toUpperCase();
             const runTime = Math.floor((Date.now() - s.startTime) / 1000);
@@ -292,94 +288,51 @@ function initTelegram() {
                 return;
             }
 
-            if (text === '✨ Daftar Akun Baru') {
-                bot.sendMessage(chatId, "📝 <b>Pendaftaran Akun Baru</b>\n━━━━━━━━━━━━━━━━━━\nSilakan kirimkan alamat email yang ingin diproses:", { parse_mode: "HTML", ...mainMenuKeyboard });
+            if (text === '🚀 Full Auto Plus') {
+                if (workerPool.isUserActive(chatId)) {
+                    bot.sendMessage(chatId, "❌ <b>Proses Anda masih berjalan.</b>\nTunggu hingga selesai atau batalkan dulu.", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    return;
+                }
+                const buttons = [
+                    [{ text: "🍀 LuckMail", callback_data: 'fullpro_luckmail' }, { text: "📬 T-Mail", callback_data: 'fullpro_tmail' }]
+                ];
+                bot.sendMessage(chatId,
+                    `🚀 <b>Full Auto Plus</b>\n━━━━━━━━━━━━━━━━━━\nSistem akan otomatis signup, ambil OTP, lalu aktivasi ChatGPT Plus.\n\nPilih provider email:`,
+                    { parse_mode: "HTML", reply_markup: { inline_keyboard: buttons } }
+                );
                 return;
             }
 
-            if (text === '🤖 Auto Daftar (LuckMail)') {
+            if (text === '💳 Auto Pay Bot') {
                 if (workerPool.isUserActive(chatId)) {
                     bot.sendMessage(chatId, "❌ <b>Proses Anda masih berjalan.</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
                     return;
                 }
-                const buttons = [
-                    [{ text: "📝 Auto Signup Only", callback_data: `mode_auto_signup` }],
-                    [{ text: "💳 Auto Signup + Autopay", callback_data: `mode_auto_autopay` }],
-                    [{ text: "🔑 Auto Login + Autopay", callback_data: `mode_auto_loginpay` }]
-                ];
-                bot.sendMessage(chatId, `🤖 <b>Mode Otomatis (LuckMail)</b>\n━━━━━━━━━━━━━━━━━━\nSistem akan membelikan email via API dan mengerjakan proses hingga selesai tanpa input manual.\n\nSilakan pilih mode:`, { parse_mode: "HTML", reply_markup: { inline_keyboard: buttons }});
-                return;
-            }
-
-            if (text === '📬 Auto Daftar (T-Mail)') {
-                if (workerPool.isUserActive(chatId)) {
-                    bot.sendMessage(chatId, "❌ <b>Proses Anda masih berjalan.</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                const uData = db.getUser(chatId);
+                if (!uData.passwordMode) {
+                    bot.sendMessage(chatId, "⚠️ <b>Mode Password Belum Diset</b>\nSilakan atur di menu ⚙️ Edit Data Saya terlebih dahulu.", { parse_mode: "HTML", ...mainMenuKeyboard });
                     return;
                 }
-                const buttons = [
-                    [{ text: "📝 Auto Signup Only", callback_data: `tmail_auto_signup` }],
-                    [{ text: "💳 Auto Signup + Autopay", callback_data: `tmail_auto_autopay` }],
-                    [{ text: "🔑 Auto Login + Autopay", callback_data: `tmail_auto_loginpay` }]
-                ];
-                bot.sendMessage(chatId, `📬 <b>Mode Otomatis (T-Mail)</b>\n━━━━━━━━━━━━━━━━━━\nSistem akan generate email via ZYVENOX T-Mail dan mengerjakan proses hingga selesai tanpa input manual.\n\nSilakan pilih mode:`, { parse_mode: "HTML", reply_markup: { inline_keyboard: buttons }});
-                return;
-            }
-
-            if (text === '🔑 Login Akun') {
-                const email = await askTelegramUser(chatId, "Masukkan <b>Alamat Email</b> akun lama:", "<b>[#LOGIN]</b> ");
-                if (!validateEmail(email)) {
-                    bot.sendMessage(chatId, "❌ Format email tidak valid.");
+                const emailInput = await askTelegramUser(chatId, "Masukkan <b>Alamat Email</b> yang ingin didaftarkan:", "<b>[#AUTO-PAY]</b> ");
+                if (!emailInput || !validateEmail(emailInput)) {
+                    bot.sendMessage(chatId, "❌ Format email tidak valid atau dibatalkan.", mainMenuKeyboard);
                     return;
                 }
-                if (workerPool.isUserActive(chatId)) {
-                    bot.sendMessage(chatId, "❌ <b>Proses Anda masih berjalan.</b>\nTunggu proses sebelumnya selesai.", { parse_mode: 'HTML', ...mainMenuKeyboard });
-                    return;
-                }
-
-                // Tanya password jika mode static
-                const uDataLogin = db.getUser(chatId);
-                let staticPassLogin = null;
-                if (uDataLogin.passwordMode === 'static') {
+                let staticPass = null;
+                if (uData.passwordMode === 'static') {
                     let isValid = false;
                     while (!isValid) {
-                        staticPassLogin = await askTelegramUser(chatId, `🔑 Masukkan <b>Password</b> untuk akun <code>${email}</code>:\n<i>(min. 12 karakter, huruf besar+kecil+angka)</i>`);
-                        if (!staticPassLogin) return;
-                        if (!isValidPassword(staticPassLogin)) {
+                        staticPass = await askTelegramUser(chatId, `🔑 Masukkan <b>Password</b> untuk akun <code>${emailInput}</code>:\n<i>(min. 12 karakter, huruf besar+kecil+angka)</i>`);
+                        if (!staticPass) return;
+                        if (!isValidPassword(staticPass)) {
                             await bot.sendMessage(chatId, "❌ <b>Password tidak memenuhi syarat.</b>\nMin. 12 karakter, huruf besar (A-Z), huruf kecil (a-z), angka (0-9).", { parse_mode: 'HTML' });
                         } else {
                             isValid = true;
                         }
                     }
                 }
-
-                const pos = workerPool.enqueueTask({ userId: chatId, chatId, email, mode: 'login_autopay', staticPassword: staticPassLogin });
-                if (pos > 0) {
-                    bot.sendMessage(chatId, `📥 <b>Masuk Antrian</b>\nUrutan Anda: ${pos}\n<i>Menunggu persetujuan slot aktif...</i>`, { parse_mode: 'HTML' });
-                }
-                return;
-            }
-
-            // Email Detection - Launch mode buttons
-            if (validateEmail(text)) {
-                if (workerPool.isUserActive(chatId)) {
-                    bot.sendMessage(chatId, "❌ <b>Proses Anda masih berjalan.</b>\nHanya 1 proses per user yang diizinkan pada satu waktu. Mohon batalkan proses yang sedang berjalan atau tunggu hingga selesai.", { parse_mode: 'HTML', ...mainMenuKeyboard });
-                    return;
-                }
-
-                const buttons = [
-                    [{ text: "📝 Signup Only", callback_data: `mode_signup_${text}` }],
-                    [{ text: "💳 Signup + Autopay", callback_data: `mode_pay_${text}` }],
-                    [{ text: "🔑 Login + Autopay", callback_data: `mode_loginpay_${text}` }]
-                ];
-
-                bot.sendMessage(chatId, 
-                    `📧 <b>Email Terdeteksi</b>\n` +
-                    `━━━━━━━━━━━━━━━━━━\n` +
-                    `Alamat: <code>${text}</code>\n\n` +
-                    `Silakan pilih mode operasi:`, {
-                    parse_mode: "HTML",
-                    reply_markup: { inline_keyboard: buttons }
-                }).catch(e => console.log(chalk.red("[Bot] Gagal mengirim tombol mode: " + e.message)));
+                const pos = workerPool.enqueueTask({ userId: chatId, chatId, email: emailInput, mode: 'autopay', staticPassword: staticPass, mailProvider: 'manual' });
+                updateStatusFor(chatId, `📥 <b>Antrian Ditambahkan</b>\n📧 Email: <code>${emailInput}</code>\n📊 Urutan: ${pos}\n<i>Menunggu giliran pemrosesan...</i>`, { email: emailInput, mode: 'autopay' }, true);
                 return;
             }
 
@@ -391,7 +344,7 @@ function initTelegram() {
             const chatId = query.message.chat.id.toString();
             // Ignore callback queries from old messages
             if (query.message && query.message.date < startTime) {
-                bot.answerCallbackQuery(query.id, { text: "⚠️ Pesan kedaluwarsa, silakan buat permintaan baru." });
+                bot.answerCallbackQuery(query.id, { text: "⚠️ Pesan kedaluwarsa, silakan buat permintaan baru." }).catch(() => {});
                 return;
             }
 
@@ -403,7 +356,7 @@ function initTelegram() {
                 const action = parts[1];
                 const tarId = parts[2];
 
-                bot.answerCallbackQuery(query.id, { text: `User ${tarId} diproses.` });
+                bot.answerCallbackQuery(query.id, { text: `User ${tarId} diproses.` }).catch(() => {});
                 
                 if (action === 'approve') {
                     db.approveUser(tarId);
@@ -426,7 +379,7 @@ function initTelegram() {
 
             // User Settings Edit Menu
             if (data === 'edit_password') {
-                bot.answerCallbackQuery(query.id);
+                bot.answerCallbackQuery(query.id).catch(() => {});
                 bot.deleteMessage(chatId, query.message.message_id).catch(()=>{});
                 bot.sendMessage(chatId,
                     `🔑 <b>Mode Password Akun</b>\n━━━━━━━━━━━━━━━━━━\n` +
@@ -448,7 +401,7 @@ function initTelegram() {
             }
 
             if (data === 'set_pass_random') {
-                bot.answerCallbackQuery(query.id);
+                bot.answerCallbackQuery(query.id).catch(() => {});
                 bot.deleteMessage(chatId, query.message.message_id).catch(()=>{});
                 db.saveUser(chatId, { passwordMode: 'random' });
                 bot.sendMessage(chatId, "✅ <b>Mode Password: Otomatis (Random)</b>\nSistem akan men-generate password unik setiap proses.", { parse_mode: 'HTML', ...mainMenuKeyboard });
@@ -456,7 +409,7 @@ function initTelegram() {
             }
 
             if (data === 'set_pass_static') {
-                bot.answerCallbackQuery(query.id);
+                bot.answerCallbackQuery(query.id).catch(() => {});
                 bot.deleteMessage(chatId, query.message.message_id).catch(()=>{});
                 db.saveUser(chatId, { passwordMode: 'static' });
                 
@@ -481,7 +434,7 @@ function initTelegram() {
             }
             
             if (data === 'cancel_process') {
-                bot.answerCallbackQuery(query.id, { text: "🛑 Membatalkan proses Anda..." });
+                bot.answerCallbackQuery(query.id, { text: "🛑 Membatalkan proses Anda..." }).catch(() => {});
                 const state = getUserState(chatId);
                 // Kita cabut user dari workerPool dan antrian
                 workerPool.cancelUserQueue(chatId);
@@ -506,35 +459,90 @@ function initTelegram() {
             }
             
             if (data === 'show_main_menu') {
-                bot.answerCallbackQuery(query.id);
+                bot.answerCallbackQuery(query.id).catch(() => {});
                 const welcomeText = `🤖 <b>ZYVENOX GPT CREATOR</b>\n━━━━━━━━━━━━━━━━━━\nSelamat datang di sistem otomatisasi ChatGPT.\n\nSilakan pilih menu di bawah ini untuk memulai:`;
                 bot.sendMessage(chatId, welcomeText, { parse_mode: 'HTML', ...mainMenuKeyboard });
                 return;
             }
-            
-            // Mode Select (Signup / Autopay / dll)
-            // Handles both mode_ (LuckMail) and tmail_ (T-Mail) prefixes
-            if (data.startsWith('mode_') || data.startsWith('tmail_')) {
-                const isTMail = data.startsWith('tmail_');
-                const stripped = isTMail ? data.replace('tmail_', 'mode_') : data;
-                const parts = stripped.split('_');
-                // The format could be "mode_signup_test@x", "mode_auto_signup", "mode_retrypay_test@x"
-                let mode = parts[1]; // signup, pay, loginpay, auto, retrypay
-                let isAuto = false;
-                let email = "";
 
-                if (mode === 'auto') {
-                    mode = 'auto_' + parts[2]; // auto_signup, auto_autopay, auto_loginpay
-                    isAuto = true;
-                } else if (mode === 'retrypay') {
-                    mode = 'retry_autopay';
-                    email = parts.slice(2).join('_');
-                } else {
-                    email = parts.slice(2).join('_'); // resync email if it contains underscore
+            // Full Auto Plus — provider selection
+            if (data === 'fullpro_luckmail' || data === 'fullpro_tmail') {
+
+                const mailProvider = data === 'fullpro_luckmail' ? 'luckmail' : 'tmail';
+                const providerName = mailProvider === 'luckmail' ? '🍀 LuckMail' : '📬 T-Mail';
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+
+                if (workerPool.isUserBusy && workerPool.isUserBusy(chatId)) {
+                    bot.sendMessage(chatId, "⚠️ <b>Anda masih punya proses berjalan.</b>\nTunggu hingga selesai atau batalkan dulu.", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    return;
                 }
 
-                bot.answerCallbackQuery(query.id);
-                bot.deleteMessage(chatId, query.message.message_id).catch(()=>{});
+                const uData = db.getUser(chatId);
+                if (!uData.passwordMode) {
+                    bot.sendMessage(chatId, "⚠️ <b>Mode Password Belum Diset</b>\nSilakan atur di menu ⚙️ Edit Data Saya terlebih dahulu.", { parse_mode: "HTML", ...mainMenuKeyboard });
+                    return;
+                }
+
+                const jumlahStr = await askTelegramUser(chatId, `Berapa jumlah akun <b>${providerName}</b> yang ingin dibuat?\n<i>(Ketik angka, contoh: 3)</i>`, "<b>[#BATCH]</b> ");
+                const jumlah = parseInt(jumlahStr, 10);
+                if (!jumlahStr || isNaN(jumlah) || jumlah < 1) {
+                    bot.sendMessage(chatId, "❌ Jumlah tidak valid. Proses dibatalkan.", mainMenuKeyboard);
+                    return;
+                }
+
+                const state = getUserState(chatId);
+                state.batchResults = [];
+                state.batchPlusCount = 0;
+                state.batchTotalDispatched = jumlah;
+                state.batchTarget = jumlah;
+                state.isBatchMode = true;
+                clearBatchProgress(chatId);
+
+                for (let bIdx = 0; bIdx < jumlah; bIdx++) {
+                    workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay', mailProvider });
+                }
+
+                const batchInitText = `📊 <b>FULL AUTO PLUS (${providerName})</b>\n` +
+                                      `━━━━━━━━━━━━━━━━━━\n` +
+                                      `✅ Akun Plus terbuat: <b>0 / ${jumlah}</b>\n` +
+                                      `📦 Total proses: <b>0</b>\n` +
+                                      `<i>Memulai batch...</i>`;
+                const reply_markup = { inline_keyboard: [[{ text: "🛑 Batalkan Batch", callback_data: "cancel_process" }]] };
+                bot.sendMessage(chatId, batchInitText, { parse_mode: 'HTML', reply_markup }).then(sent => {
+                    if (sent) {
+                        state.lastStatusMessageId = sent.message_id;
+                        state.dashboardObscured = false;
+                    }
+                }).catch(() => {});
+                return;
+            }
+
+            // Edit T-Mail URL
+            if (data === 'edit_tmail_url') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                const inputUrl = await askTelegramUser(chatId,
+                    `🌐 Masukkan <b>T-Mail Base URL</b> baru:\n<i>(contoh: https://mail.zyvenox.my.id)</i>\n<i>Kirim "-" untuk reset ke default</i>`);
+                if (!inputUrl) return;
+                let finalUrl = inputUrl.trim();
+                if (finalUrl === '-' || finalUrl === '') {
+                    db.saveUser(chatId, { tmailBaseUrl: null });
+                    bot.sendMessage(chatId, `✅ <b>T-Mail URL direset ke default</b>\n🌐 URL: <code>https://mail.zyvenox.my.id</code>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                } else {
+                    if (!finalUrl.startsWith('http')) finalUrl = 'https://' + finalUrl;
+                    finalUrl = finalUrl.replace(/\/$/, '');
+                    db.saveUser(chatId, { tmailBaseUrl: finalUrl });
+                    bot.sendMessage(chatId, `✅ <b>T-Mail URL tersimpan</b>\n🌐 URL: <code>${finalUrl}</code>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                }
+                return;
+            }
+
+            // Retry Autopay
+            if (data.startsWith('mode_retrypay_')) {
+                const email = data.replace('mode_retrypay_', '');
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
 
                 if (workerPool.isUserActive(chatId)) {
                     bot.sendMessage(chatId, "❌ Proses Anda masih berjalan. Hanya 1 slot per user.");
@@ -542,19 +550,11 @@ function initTelegram() {
                 }
 
                 const uData = db.getUser(chatId);
-
-                // Validation: cek passwordMode sudah diset
-                if (!uData.passwordMode) {
-                    bot.sendMessage(chatId, "⚠️ <b>Mode Password Belum Diset</b>\nSilakan pilih mode password di menu ⚙️ Edit Data Saya → 🔑 Ganti Mode Password.", { parse_mode: "HTML", ...mainMenuKeyboard });
-                    return;
-                }
-
-                // Tanya password sebelum masuk antrian jika mode static (hanya mode non-auto)
                 let staticPass = null;
-                if (uData.passwordMode === 'static' && !mode.startsWith('auto_')) {
+                if (uData.passwordMode === 'static') {
                     let isValid = false;
                     while (!isValid) {
-                        staticPass = await askTelegramUser(chatId, `🔑 Masukkan <b>Password</b> untuk akun <code>${email || 'baru'}</code>:\n<i>(min. 12 karakter, huruf besar+kecil+angka)</i>`);
+                        staticPass = await askTelegramUser(chatId, `🔑 Masukkan <b>Password</b> untuk akun <code>${email}</code>:\n<i>(min. 12 karakter, huruf besar+kecil+angka)</i>`);
                         if (!staticPass) return;
                         if (!isValidPassword(staticPass)) {
                             await bot.sendMessage(chatId, "❌ <b>Password tidak memenuhi syarat.</b>\nMin. 12 karakter, huruf besar (A-Z), huruf kecil (a-z), angka (0-9).", { parse_mode: 'HTML' });
@@ -563,76 +563,12 @@ function initTelegram() {
                         }
                     }
                 }
-                // Untuk auto_* + static, password ditanya per-task di handleAccountTask
-                
-                if (mode === 'auto_loginpay') {
-                    const providerLabel = isTMail ? 'T-Mail' : 'LuckMail';
-                    email = await askTelegramUser(chatId, `Masukkan <b>Alamat Email ${providerLabel}</b> lama:`, "<b>[#AUTO-LOGIN]</b> ");
-                    if (!validateEmail(email)) {
-                        bot.sendMessage(chatId, "❌ Format email tidak valid.");
-                        return;
-                    }
-                }
-
-                // ── BATCH MODE: auto_autopay ──────────────────────────────
-                // Jika mode auto_autopay, tanya jumlah akun yang ingin dibuat
-                // lalu enqueue sebanyak itu. workerPool akan proses 1-per-1 otomatis (FIFO).
-                if (mode === 'auto_autopay') {
-                    // Cek jika sudah ada batch berjalan/antri
-                    const state = getUserState(chatId);
-                    if (workerPool.isUserBusy && workerPool.isUserBusy(chatId)) {
-                        bot.sendMessage(chatId, "⚠️ <b>Anda masih punya proses berjalan atau antrian.</b>\nTunggu hingga selesai atau batalkan dulu.", { parse_mode: 'HTML', ...mainMenuKeyboard });
-                        return;
-                    }
-                    const jumlahStr = await askTelegramUser(chatId, "Berapa jumlah akun yang ingin dibuat?\n<i>(Ketik angka, contoh: 3)</i>", "<b>[#BATCH]</b> ");
-                    const jumlah = parseInt(jumlahStr, 10);
-                    if (!jumlahStr || isNaN(jumlah) || jumlah < 1) {
-                        bot.sendMessage(chatId, "❌ Jumlah tidak valid. Proses dibatalkan.", mainMenuKeyboard);
-                        return;
-                    }
-                    // Enqueue semua tasks sekaligus; workerPool proses FIFO
-                    state.batchResults = [];
-                    state.batchPlusCount = 0;
-                    state.batchTotalDispatched = jumlah;
-                    state.batchTarget = jumlah;
-                    state.isBatchMode = true;
-                    clearBatchProgress(chatId); // Reset progress file lama
-                    const batchMode = isTMail ? 'auto_autopay' : 'auto_autopay';
-                    const mailProvider = isTMail ? 'tmail' : 'luckmail';
-                    for (let bIdx = 0; bIdx < jumlah; bIdx++) {
-                        workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: batchMode, mailProvider });
-                    }
-                    const providerName = isTMail ? 'T-Mail' : 'LuckMail';
-                    const batchInitText = `📊 <b>BATCH MODE (${providerName})</b>\n` +
-                                          `━━━━━━━━━━━━━━━━━━\n` +
-                                          `✅ Akun Plus terbuat: <b>0 / ${jumlah}</b>\n` +
-                                          `📦 Total proses: <b>0</b>\n` +
-                                          `<i>Memulai batch...</i>`;
-                    const reply_markup = { inline_keyboard: [[{ text: "🛑 Batalkan Batch", callback_data: "cancel_process" }]] };
-                    bot.sendMessage(chatId, batchInitText, { parse_mode: 'HTML', reply_markup }).then(sent => {
-                        if (sent) {
-                            state.lastStatusMessageId = sent.message_id;
-                            state.dashboardObscured = false;
-                        }
-                    }).catch(() => {});
-                    return;
-                }
-                // ────────────────────────────────────────────────────────────
-
-                // Add to queue (mode selain auto_autopay)
-                let mappedMode = mode;
-                if (mode === 'loginpay') mappedMode = 'login_autopay';
-                if (mode === 'pay') mappedMode = 'autopay';
-                
-                const mailProvider = isTMail ? 'tmail' : 'luckmail';
-                const pos = workerPool.enqueueTask({ userId: chatId, chatId, email, mode: mappedMode, staticPassword: staticPass, mailProvider });
-                
-                updateStatusFor(chatId, `📥 <b>Antrian Ditambahkan</b>\n📧 Email: <code>${email || 'AUTO-DRAFT'}</code>\n📊 Urutan: ${pos}\n<i>Menunggu giliran pemrosesan...</i>`, { email: email || 'Menunggu API', mode: mappedMode }, true);
-                
+                const pos = workerPool.enqueueTask({ userId: chatId, chatId, email, mode: 'retry_autopay', staticPassword: staticPass, mailProvider: 'manual' });
+                updateStatusFor(chatId, `📥 <b>Retry Pay Ditambahkan</b>\n📧 Email: <code>${email}</code>\n📊 Urutan: ${pos}\n<i>Menunggu giliran pemrosesan...</i>`, { email, mode: 'retry_autopay' }, true);
                 return;
             }
-            
-            bot.answerCallbackQuery(query.id);
+
+            bot.answerCallbackQuery(query.id).catch(() => {});
         });
 
     } catch (error) {
@@ -644,16 +580,19 @@ function sendSettingsMenu(chatId, userData) {
     const modeLabel = userData.passwordMode === 'random' ? '🔄 Otomatis (Random)'
                     : userData.passwordMode === 'static' ? '🔑 Manual (Static)'
                     : '⚠️ Belum diset';
+    const tmailUrl = userData.tmailBaseUrl || 'https://mail.zyvenox.my.id (default)';
     const text = `⚙️ <b>Edit Data Saya</b>\n\n` +
                  `🔑 <b>Mode Password:</b> <code>${modeLabel}</code>\n` +
                  `<i>Password dibuat ${userData.passwordMode === 'random' ? 'otomatis setiap proses' : userData.passwordMode === 'static' ? 'dari input Anda setiap proses' : '— silakan set dulu'}</i>\n\n` +
+                 `🌐 <b>T-Mail URL:</b> <code>${tmailUrl}</code>\n\n` +
                  `Silakan pilih apa yang ingin diubah:`;
-                 
+
     bot.sendMessage(chatId, text, {
         parse_mode: 'HTML',
         reply_markup: {
             inline_keyboard: [
                 [{ text: "🔑 Ganti Mode Password", callback_data: "edit_password" }],
+                [{ text: "🌐 Ganti T-Mail URL", callback_data: "edit_tmail_url" }],
                 [{ text: "❌ Tutup", callback_data: "show_main_menu" }]
             ]
         }

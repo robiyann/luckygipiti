@@ -9,7 +9,7 @@ if (!API_KEY) {
 }
 const BASE_URL = "https://mails.luckyous.com/api/v1/openapi";
 
-const ALLOWED_DOMAINS = ["outlook.de"];
+const ALLOWED_DOMAINS = ["outlook.jp", "outlook.com"];
 
 const apiClientOpts = {
     baseURL: BASE_URL,

@@ -7,6 +7,21 @@
     "password": "Langin@12345",
     "gopayPhone": "89523042824",
     "gopayPin": "120402",
-    "passwordMode": "random"
+    "passwordMode": "static"
+  },
+  "8320610696": {
+    "status": "approved",
+    "firstName": "Raymond",
+    "registeredAt": "2026-04-24T18:05:47.535Z",
+    "approvedAt": "2026-04-24T18:05:51.494Z",
+    "passwordMode": "static",
+    "staticPassword": "Premiumz1234",
+    "tmailBaseUrl": "https://www.cezhgpt.my.id"
+  },
+  "8792801296": {
+    "status": "rejected",
+    "firstName": "Mr",
+    "registeredAt": "2026-04-25T01:46:10.077Z",
+    "rejectedAt": "2026-04-25T01:46:13.784Z"
   }
 }
