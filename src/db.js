@@ -8,7 +8,56 @@ let db;
 try {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
-    // Runtime migration: tambah kolom baru kalau belum ada
+
+    // Buat schema jika belum ada (untuk instalasi fresh)
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            status TEXT DEFAULT 'active',
+            firstName TEXT,
+            registeredAt TEXT,
+            points INTEGER DEFAULT 0,
+            referralCode TEXT UNIQUE,
+            referredBy TEXT,
+            referralRewarded INTEGER DEFAULT 0,
+            totalAccountsCreated INTEGER DEFAULT 0,
+            totalPlusCreated INTEGER DEFAULT 0,
+            totalReferralsEarned INTEGER DEFAULT 0,
+            maxThreads INTEGER,
+            passwordMode TEXT,
+            staticPassword TEXT,
+            reportFormat TEXT,
+            tmailBaseUrl TEXT,
+            tmailApiKey TEXT,
+            luckMailApiKey TEXT,
+            luckMailDomains TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS accounts (
+            email TEXT PRIMARY KEY,
+            userId TEXT,
+            password TEXT,
+            accountType TEXT,
+            accessToken TEXT,
+            refreshToken TEXT,
+            mailToken TEXT,
+            updatedAt TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS otp_cache (
+            email TEXT PRIMARY KEY,
+            otp TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS orders (
+            orderId TEXT PRIMARY KEY,
+            email TEXT,
+            status TEXT,
+            date TEXT
+        );
+    `);
+
+    // Runtime migration: tambah kolom tmailDomains kalau belum ada
     const existingCols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
     if (!existingCols.includes('tmailDomains')) {
         db.prepare("ALTER TABLE users ADD COLUMN tmailDomains TEXT").run();
