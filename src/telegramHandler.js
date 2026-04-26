@@ -405,6 +405,7 @@ function initTelegram() {
                 const botUser = await bot.getMe();
                 bot.sendMessage(chatId, 
                     `🔗 <b>YOUR INVITE LINK</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `💎 <b>Points Balance:</b> ${stats.points}\n` +
                     `👥 <b>People Invited:</b> ${stats.totalReferrals}\n\n` +
                     `<b>Link:</b> t.me/${botUser.username}?start=REF_${stats.referralCode}\n\n` +
                     `<i>Share this link to earn +1 point for every referral who successfully creates their first ChatGPT Plus account!</i>`,
