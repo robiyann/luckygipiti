@@ -649,9 +649,11 @@ function initTelegram() {
                 state.isBatchMode = true;
                 clearBatchProgress(chatId);
 
+                const batchTasks = [];
                 for (let bIdx = 0; bIdx < amount; bIdx++) {
-                    workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay', mailProvider });
+                    batchTasks.push({ userId: chatId, chatId, email: '', mode: 'auto_autopay', mailProvider });
                 }
+                workerPool.enqueueBatch(batchTasks);
 
                 const batchInitText = `📊 <b>FULL AUTO PLUS (${providerName})</b>\n` +
                                       `━━━━━━━━━━━━━━━━━━\n` +
@@ -714,8 +716,8 @@ function initTelegram() {
                         db.saveUser(chatId, { luckMailApiKey: null });
                         bot.sendMessage(chatId, `✅ <b>LuckMail API Key removed</b>.`, { parse_mode: 'HTML', ...mainMenuKeyboard });
                         isValid = true;
-                    } else if (!key.trim().startsWith('luck_')) {
-                        bot.sendMessage(chatId, `❌ Invalid LuckMail key format. It usually starts with 'luck_'. Try again.`);
+                    } else if (!key.trim().startsWith('luck_') && !key.trim().startsWith('ak_')) {
+                        bot.sendMessage(chatId, `❌ Invalid LuckMail key format. It usually starts with 'luck_' or 'ak_'. Try again.`);
                     } else {
                         db.saveUser(chatId, { luckMailApiKey: key.trim() });
                         bot.sendMessage(chatId, `✅ <b>LuckMail API Key saved</b>.`, { parse_mode: 'HTML', ...mainMenuKeyboard });

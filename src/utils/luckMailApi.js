@@ -7,7 +7,7 @@ const GLOBAL_API_KEY = process.env.LUCKMAIL_API_KEY || "";
 
 const BASE_URL = "https://mails.luckyous.com/api/v1/openapi";
 
-const ALLOWED_DOMAINS = ["outlook.jp", "outlook.com"];
+const ALLOWED_DOMAINS = ["outlook.de"];
 
 function createApiClient(apiKey) {
     const apiClientOpts = {
@@ -17,14 +17,14 @@ function createApiClient(apiKey) {
             'Content-Type': 'application/json'
         }
     };
-    
+
     const proxyUrl = process.env.GENERAL_PROXY_URL;
     if (proxyUrl) {
         const { HttpsProxyAgent } = require('https-proxy-agent');
         apiClientOpts.httpsAgent = new HttpsProxyAgent(proxyUrl);
         apiClientOpts.proxy = false;
     }
-    
+
     return axios.create(apiClientOpts);
 }
 
@@ -48,7 +48,7 @@ async function purchaseEmail(apiKey, domains) {
         const apiClient = createApiClient(apiKey);
         const response = await apiClient.post('/email/purchase', {
             project_code: "openai",
-            email_type: "ms_imap",
+            email_type: "ms_graph",
             domain: randomDomain,
             quantity: 1,
             variant_mode: ""

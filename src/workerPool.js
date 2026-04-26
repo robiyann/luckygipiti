@@ -77,7 +77,7 @@ function getNextFairTaskIndex() {
         const userActive = getUserActiveCount(t.userId);
         return userActive < userMax;
     });
-    return idx !== -1 ? idx : 0; // fallback boolean/fifo
+    return idx; // -1 jika semua user sudah di cap (tidak ada yang bisa jalan)
 }
 
 // Cek apakah user masih punya task di queue (termasuk yang sedang jalan)
@@ -93,11 +93,23 @@ function getQueuePosition(userId) {
     return pos !== -1 ? pos + 1 : 0;
 }
 
+// Single task enqueue — panggil tryStart sekali
 function enqueueTask(task) {
     task.taskId = task.taskId || _nextTaskId();
     globalQueue.push(task);
     tryStart();
     return getQueuePosition(task.userId);
+}
+
+// Batch enqueue — push semua ke queue, baru tryStart SEKALI di akhir
+// Mencegah 100x tryStart() untuk batch 100 task
+function enqueueBatch(tasks) {
+    for (const task of tasks) {
+        task.taskId = task.taskId || _nextTaskId();
+        globalQueue.push(task);
+    }
+    tryStart(); // Satu kali saja — slot berikutnya dibuka via releaseSlot()
+    return getQueuePosition(tasks[0]?.userId);
 }
 
 function cancelUserQueue(userId) {
@@ -122,7 +134,7 @@ async function tryStart() {
     const taskIndex = getNextFairTaskIndex();
 
     if (taskIndex === -1) {
-        // All queued tasks belong to users already running — skip for now
+        // All queued tasks belong to users already at their thread cap — nothing to start
         return;
     }
 
@@ -151,8 +163,6 @@ async function tryStart() {
         task.cancelToken = cancelToken;
         // Run asynchronously, catch errors, and ensure releaseSlot is called
         processTaskCallback(task).then(result => {
-             // Teruskan result ke telegramHandler untuk batch/single reporting
-             // tanpa menampilkan pesan status tambahan (pesan sudah dikirim oleh handleAccountTask)
              const { handleTaskResult } = require('./telegramHandler');
              if (handleTaskResult) handleTaskResult(userIdStr, result);
         }).catch(err => {
@@ -168,9 +178,9 @@ async function tryStart() {
         logger.error("[Pool] Belum ada prosesor(task runner) yang di-set!");
         releaseSlot(taskId);
     }
-
-    // Try to start another task if there's still room
-    tryStart();
+    // NOTE: Tidak ada tryStart() rekursif di sini.
+    // tryStart() hanya dipanggil dari enqueueTask() dan releaseSlot()
+    // agar per-user maxThreads benar-benar dihormati.
 }
 
 // Menghapus semua active slot milik user (untuk cancel)
@@ -187,10 +197,12 @@ function cancelUserActiveToken(userId) {
 module.exports = {
     setTaskProcessor,
     getActiveCount,
+    getUserActiveCount,
     isUserActive,
     isUserBusy,
     getQueuePosition,
     enqueueTask,
+    enqueueBatch,
     cancelUserQueue,
     cancelUserActiveToken,
     cancelTokenForUser,
