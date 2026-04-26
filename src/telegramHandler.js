@@ -988,8 +988,7 @@ function handleTaskResult(chatId, result) {
             saveBatchProgress(chatId, state.batchResults.filter(r => r && r.accountType === 'Plus'));
         } else {
             // Task gagal jadi Plus → enqueue replacement ONLY within retry cap
-            // maxReplacements = batchTarget × 1 (multiplier 2: original + 1x replacement)
-            const maxReplacements = state.batchTarget; // 100 target → max 100 replacements → 200 total
+            const maxReplacements = state.batchTarget; // multiplier 1x replacement
             const replacementsSoFar = state.batchTotalDispatched - state.batchTarget;
 
             if (state.batchPlusCount < state.batchTarget && replacementsSoFar < maxReplacements) {
@@ -998,25 +997,31 @@ function handleTaskResult(chatId, result) {
                 logger.warn(`[Bot] Task failed, re-queuing replacement for ${chatId} (${replacementsSoFar + 1}/${maxReplacements} retries used, ${replacementsLeft} left)`);
                 const mailProvider = result.mailProvider || 'luckmail';
                 workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay', mailProvider });
-            } else if (state.batchPlusCount < state.batchTarget && replacementsSoFar >= maxReplacements && state.isBatchMode) {
-                // Hit the retry cap — force finish once (guard with isBatchMode flag)
-                logger.warn(`[Bot] Batch retry cap reached. Total dispatched: ${state.batchTotalDispatched}. Forcing finish with ${state.batchPlusCount} Plus accounts.`);
-                state.isBatchMode = false; // prevent double-fire
-                const failMsg = `⚠️ <b>BATCH STOPPED</b>\n━━━━━━━━━━━━━━━━━━\n` +
-                    `✅ Plus accounts : <b>${state.batchPlusCount} / ${state.batchTarget}</b>\n` +
-                    `❌ Retry limit   : <b>${maxReplacements} replacements used</b>\n\n` +
-                    `<i>Could not reach the target. Report contains successful accounts only.</i>`;
-                if (bot) bot.sendMessage(chatId, failMsg, { parse_mode: 'HTML', ...mainMenuKeyboard });
-                setTimeout(() => checkAndSendBatchReport(chatId, true), 500);
+            } else if (state.batchPlusCount < state.batchTarget && replacementsSoFar >= maxReplacements) {
+                // Hit the retry cap — do not force finish yet! Let the remaining running tasks finish naturally.
+                // Output a warning so we know the cap is reached.
+                logger.warn(`[Bot] Batch retry cap reached. No more replacements will be queued.`);
+            }
+        }
+
+        // Cek jika target tercapai lebih awal, batalkan queue yang belum jalan untuk menghemat resource
+        if (state.batchPlusCount >= state.batchTarget) {
+            workerPool.cancelUserQueue(chatId);
+            // Sesuaikan total dispatched agar sama dengan yang SUDAH SELESAI + YANG SEDANG JALAN
+            // Karena queue dibatalkan, total dispatched tidak boleh lebih besar dari itu.
+            const { getUserActiveCount } = require('./workerPool');
+            const activeRunning = typeof getUserActiveCount === 'function' ? getUserActiveCount(chatId) : 0;
+            const newTotal = state.batchResults.length + activeRunning;
+            if (state.batchTotalDispatched > newTotal) {
+                state.batchTotalDispatched = newTotal;
             }
         }
 
         // Update dashboard sederhana: cuma counter akun Plus
-        const failCount = state.batchTotalDispatched - state.batchPlusCount - (state.batchTarget - state.batchPlusCount);
         const batchText = `📊 <b>BATCH MODE</b>\n` +
                           `━━━━━━━━━━━━━━━━━━\n` +
                           `✅ Plus accounts created: <b>${state.batchPlusCount} / ${state.batchTarget}</b>\n` +
-                          `📦 Total tasks: <b>${state.batchResults.length}</b>\n` +
+                          `📦 Total tasks: <b>${state.batchResults.length} / ${state.batchTotalDispatched}</b>\n` +
                           `<i>Running...</i>`;
 
         // Kirim langsung tanpa melalui filter batch di updateStatusFor
@@ -1053,13 +1058,13 @@ function handleTaskResult(chatId, result) {
  * Fungsi mandiri untuk mengirim laporan batch jika target tercapai.
  * Dipanggil tiap kali ada update status (batch mode).
  */
-async function checkAndSendBatchReport(chatId, forceFinish = false) {
+async function checkAndSendBatchReport(chatId) {
     const state = getUserState(chatId);
-    
-    // Guard: target reached OR forced finish (retry cap hit)
-    const targetReached = state.isBatchMode && state.batchPlusCount >= state.batchTarget && state.batchTarget > 0;
-    if (!targetReached && !forceFinish) return;
     if (!state.isBatchMode) return;
+    
+    // Batch BENAR-BENAR SELESAI hanya jika semua task yang didispatch sudah mengembalikan hasil
+    const isFinished = state.batchResults.length >= state.batchTotalDispatched;
+    if (!isFinished) return;
 
     // Ambil data hasil dan segera reset state agar tidak kepanggil dobel
         const results = [...state.batchResults];
