@@ -93,22 +93,21 @@ function getQueuePosition(userId) {
     return pos !== -1 ? pos + 1 : 0;
 }
 
-// Single task enqueue — panggil tryStart sekali
+// Single task enqueue — isi semua slot yang tersedia
 function enqueueTask(task) {
     task.taskId = task.taskId || _nextTaskId();
     globalQueue.push(task);
-    tryStart();
+    while (tryStart()) {} // Isi semua slot yang masih bisa diisi
     return getQueuePosition(task.userId);
 }
 
-// Batch enqueue — push semua ke queue, baru tryStart SEKALI di akhir
-// Mencegah 100x tryStart() untuk batch 100 task
+// Batch enqueue — push semua ke queue, lalu langsung isi semua slot yang tersedia
 function enqueueBatch(tasks) {
     for (const task of tasks) {
         task.taskId = task.taskId || _nextTaskId();
         globalQueue.push(task);
     }
-    tryStart(); // Satu kali saja — slot berikutnya dibuka via releaseSlot()
+    while (tryStart()) {} // Langsung jalankan sebanyak mungkin slot sekaligus
     return getQueuePosition(tasks[0]?.userId);
 }
 
@@ -123,19 +122,20 @@ function getActiveStatus() {
 
 function releaseSlot(taskId) {
     activeSlots.delete(taskId);
-    tryStart(); // Try to fill the slot
+    while (tryStart()) {} // Setelah slot bebas, isi kembali sebanyak mungkin
 }
 
-async function tryStart() {
+// Returns true jika berhasil memulai 1 task, false jika tidak ada yang bisa dijalankan
+function tryStart() {
     if (activeSlots.size >= MAX_SLOTS || globalQueue.length === 0) {
-        return;
+        return false;
     }
 
     const taskIndex = getNextFairTaskIndex();
 
     if (taskIndex === -1) {
         // All queued tasks belong to users already at their thread cap — nothing to start
-        return;
+        return false;
     }
 
     // Remove task from queue
@@ -178,9 +178,8 @@ async function tryStart() {
         logger.error("[Pool] Belum ada prosesor(task runner) yang di-set!");
         releaseSlot(taskId);
     }
-    // NOTE: Tidak ada tryStart() rekursif di sini.
-    // tryStart() hanya dipanggil dari enqueueTask() dan releaseSlot()
-    // agar per-user maxThreads benar-benar dihormati.
+
+    return true; // Berhasil memulai 1 task
 }
 
 // Menghapus semua active slot milik user (untuk cancel)
@@ -191,7 +190,7 @@ function cancelUserActiveToken(userId) {
             activeSlots.delete(taskId);
         }
     }
-    tryStart();
+    while (tryStart()) {} // Isi ulang slot yang terbebas
 }
 
 module.exports = {
