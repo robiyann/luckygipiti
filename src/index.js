@@ -78,7 +78,10 @@ async function handleAccountTask(task) {
                 
                 let purchase;
                 if (isTMail) {
-                    purchase = await tMailApi.generateEmail(tmailBaseUrl, userData.tmailApiKey);
+                    const preferredDomains = userData.tmailDomains
+                        ? userData.tmailDomains.split(',').map(d => d.trim().toLowerCase()).filter(Boolean)
+                        : [];
+                    purchase = await tMailApi.generateEmail(tmailBaseUrl, userData.tmailApiKey, preferredDomains);
                     purchase.purchaseId = null;
                 } else {
                     const luckDomains = userData.luckMailDomains ? userData.luckMailDomains.split(',').map(d => d.trim()).filter(Boolean) : [];

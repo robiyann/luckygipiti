@@ -39,19 +39,28 @@ async function getDomains(baseUrl) {
 }
 
 /**
- * Generate email random dari T-MAIL API menggunakan round-robin domain otomatis.
- * Server yang menentukan domain berikutnya secara adil.
+ * Generate email dari T-MAIL API.
  * @param {string} [baseUrl] - Override base URL (dari user settings)
  * @param {string} [apiKey] - API key T-Mail user
+ * @param {string[]} [preferredDomains] - Domain pilihan user (dari tmailDomains settings). Jika tidak diset, pakai round-robin server.
  * @returns {Promise<{email: string, token: string}>}
  */
-async function generateEmail(baseUrl, apiKey) {
+async function generateEmail(baseUrl, apiKey, preferredDomains) {
     try {
         const apiClient = createApiClient(baseUrl);
         const headers = apiKey ? { 'X-API-Key': apiKey } : {};
 
-        // Gunakan endpoint /generate/auto — server pilih domain secara round-robin
-        const response = await apiClient.post('/api/mailboxes/generate/auto', {}, { headers });
+        let response;
+        if (preferredDomains && preferredDomains.length > 0) {
+            // Mode: User punya domain pilihan sendiri — pilih secara random dari list mereka
+            const domain = preferredDomains[Math.floor(Math.random() * preferredDomains.length)];
+            logger.info(`[T-Mail] Menggunakan domain pilihan user: ${domain} (dari ${preferredDomains.length} domain tersedia)`);
+            response = await apiClient.post('/api/mailboxes/generate', { domain }, { headers });
+        } else {
+            // Mode: Tidak ada preferensi — gunakan round-robin server otomatis
+            logger.info(`[T-Mail] Tidak ada domain preferensi, menggunakan server round-robin (/generate/auto)`);
+            response = await apiClient.post('/api/mailboxes/generate/auto', {}, { headers });
+        }
 
         if (response.data && response.data.address) {
             const email = response.data.address;

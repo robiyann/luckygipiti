@@ -8,6 +8,12 @@ let db;
 try {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
+    // Runtime migration: tambah kolom baru kalau belum ada
+    const existingCols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+    if (!existingCols.includes('tmailDomains')) {
+        db.prepare("ALTER TABLE users ADD COLUMN tmailDomains TEXT").run();
+        logger.info('[DB] Kolom tmailDomains ditambahkan ke tabel users.');
+    }
 } catch (e) {
     logger.error("[DB] Failed to open db.sqlite: " + e.message);
     process.exit(1);
@@ -97,7 +103,7 @@ function saveUser(userId, data) {
     const allowedKeys = new Set([
         'status', 'firstName', 'registeredAt', 'points', 'referralCode', 'referredBy', 'referralRewarded',
         'totalAccountsCreated', 'totalPlusCreated', 'totalReferralsEarned', 'maxThreads', 'passwordMode',
-        'staticPassword', 'reportFormat', 'tmailBaseUrl', 'tmailApiKey', 'luckMailApiKey', 'luckMailDomains'
+        'staticPassword', 'reportFormat', 'tmailBaseUrl', 'tmailApiKey', 'tmailDomains', 'luckMailApiKey', 'luckMailDomains'
     ]);
 
     const updates = [];

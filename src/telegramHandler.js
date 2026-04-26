@@ -736,6 +736,23 @@ function initTelegram() {
                 return;
             }
 
+            if (data === 'edit_tmail_domains') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                const doms = await askTelegramUser(chatId,
+                    `🌐 Enter preferred <b>T-Mail Domains</b> (comma separated):\n<i>Example: domain1.com, domain2.com</i>\n<i>Send "-" to reset ke auto round-robin</i>`);
+                if (!doms) return;
+                if (doms.trim() === '-' || doms.trim() === '') {
+                    db.saveUser(chatId, { tmailDomains: null });
+                    bot.sendMessage(chatId, `✅ <b>T-Mail Domains reset</b>\n🔀 Mode: Auto Round-Robin (semua domain)`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                } else {
+                    const clean = doms.split(',').map(d => d.trim().toLowerCase()).filter(Boolean).join(', ');
+                    db.saveUser(chatId, { tmailDomains: clean });
+                    bot.sendMessage(chatId, `✅ <b>T-Mail Domains saved:</b>\n<code>${clean}</code>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                }
+                return;
+            }
+
             // Retry Autopay
             if (data.startsWith('mode_retrypay_')) {
                 const email = data.replace('mode_retrypay_', '');
@@ -821,6 +838,7 @@ function sendSettingsMenu(chatId, userData) {
                       : '🔑 Email + Token (Default)';
     const tmailUrl = userData.tmailBaseUrl || 'https://mail.zyvenox.my.id (default)';
     const tmailKey = userData.tmailApiKey ? '✅ Set' : '⚠️ Not set';
+    const tmailDomains = userData.tmailDomains || '🔀 Auto Round-Robin (all domains)';
     const luckKey = userData.luckMailApiKey ? '✅ Set' : '⚠️ Not set';
     const luckDomains = userData.luckMailDomains || 'outlook.com, outlook.jp';
 
@@ -830,7 +848,8 @@ function sendSettingsMenu(chatId, userData) {
                  `🍀 <b>LuckMail Key     :</b> <code>${luckKey}</code>\n` +
                  `🌐 <b>LuckMail Domains :</b> <code>${luckDomains}</code>\n\n` +
                  `📬 <b>T-Mail Base URL  :</b> <code>${tmailUrl}</code>\n` +
-                 `🔑 <b>T-Mail Key       :</b> <code>${tmailKey}</code>\n\n` +
+                 `🔑 <b>T-Mail Key       :</b> <code>${tmailKey}</code>\n` +
+                 `🌐 <b>T-Mail Domains   :</b> <code>${tmailDomains}</code>\n\n` +
                  `<i>Select an option below to change:</i>`;
 
     bot.sendMessage(chatId, text, {
@@ -842,6 +861,7 @@ function sendSettingsMenu(chatId, userData) {
                 [{ text: "🌐 LuckMail Domains", callback_data: "edit_luckmail_domains" }],
                 [{ text: "📬 T-Mail Base URL", callback_data: "edit_tmail_url" }],
                 [{ text: "🔑 T-Mail API Key", callback_data: "edit_tmail_key" }],
+                [{ text: "🌐 T-Mail Domains", callback_data: "edit_tmail_domains" }],
                 [{ text: "❌ Close", callback_data: "show_main_menu" }]
             ]
         }
