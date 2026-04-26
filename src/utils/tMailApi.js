@@ -82,19 +82,21 @@ async function generateEmail(baseUrl, apiKey) {
  * @returns {Promise<string|null>}
  */
 async function fetchVerificationCode(token, email, baseUrl) {
-    const maxRetries = 10;
+    const maxRetries = 15;  // 15 × 2s = 30 detik (OTP OpenAI biasanya masuk dalam 5-10 detik)
     const delayMs = 2000;
     const lastOtp = db.getOtpCache(email);
 
     logger.info(`[T-Mail] Memulai polling OTP untuk ${email} via token...`);
     if (lastOtp) logger.debug(`[T-Mail] OTP sebelumnya: ${lastOtp}, akan di-ignore.`);
+    logger.debug(`[T-Mail] Token yang digunakan: ${token}`);
+    logger.debug(`[T-Mail] Base URL: ${(baseUrl || DEFAULT_BASE_URL).replace(/\/$/, '')}`);
 
     const apiClient = createApiClient(baseUrl);
 
     for (let i = 0; i < maxRetries; i++) {
         try {
             await new Promise(resolve => setTimeout(resolve, delayMs));
-            // Sekarang menggunakan token endpoint
+            // Menggunakan token endpoint
             const urlPath = `/api/mailboxes/token/${encodeURIComponent(token)}/otp?service=openai`;
             const response = await apiClient.get(urlPath);
             if (response.data && response.data.otp) {
@@ -109,15 +111,18 @@ async function fetchVerificationCode(token, email, baseUrl) {
             }
         } catch (error) {
             if (error.response && error.response.status === 404) {
-                // Normal: OTP belum masuk
+                // Normal: OTP belum masuk, lanjut polling
+                logger.debug(`[T-Mail] Belum ada OTP (404) untuk ${email} di iterasi ${i + 1}/${maxRetries}`);
+            } else if (error.response) {
+                logger.warn(`[T-Mail] Error HTTP ${error.response.status} saat polling OTP: ${JSON.stringify(error.response.data || '')}`);
             } else {
                 logger.debug(`[T-Mail] Exception saat polling: ${error.message}`);
             }
         }
-        if (i % 2 === 0) logger.info(`[T-Mail] Menunggu OTP untuk ${email}... (${(i + 1) * 2}s)`);
+        if (i % 5 === 0) logger.info(`[T-Mail] Menunggu OTP untuk ${email}... (${(i + 1) * 2}s / 90s)`);
     }
 
-    logger.warn(`[T-Mail] Timeout 20 detik tercapai. OTP tidak ditemukan untuk ${email}.`);
+    logger.warn(`[T-Mail] Timeout 90 detik tercapai. OTP tidak ditemukan untuk ${email}.`);
     return null;
 }
 
