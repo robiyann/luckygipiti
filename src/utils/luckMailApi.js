@@ -2,42 +2,50 @@ const axios = require('axios');
 const db = require('../db');
 const logger = require('./logger');
 
-const API_KEY = process.env.LUCKMAIL_API_KEY;
-if (!API_KEY) {
-    console.error("\x1b[31m[ERROR] LUCKMAIL_API_KEY tidak ditemukan di .env!\x1b[0m");
-    process.exit(1);
-}
+// Global API_KEY digunakan hanya sebagai fallback jika dibutuhkan, tapi untuk user akan pakai key mereka sendiri
+const GLOBAL_API_KEY = process.env.LUCKMAIL_API_KEY || "";
+
 const BASE_URL = "https://mails.luckyous.com/api/v1/openapi";
 
 const ALLOWED_DOMAINS = ["outlook.jp", "outlook.com"];
 
-const apiClientOpts = {
-    baseURL: BASE_URL,
-    headers: {
-        'X-API-Key': API_KEY,
-        'Content-Type': 'application/json'
+function createApiClient(apiKey) {
+    const apiClientOpts = {
+        baseURL: BASE_URL,
+        headers: {
+            'X-API-Key': apiKey,
+            'Content-Type': 'application/json'
+        }
+    };
+    
+    const proxyUrl = process.env.GENERAL_PROXY_URL;
+    if (proxyUrl) {
+        const { HttpsProxyAgent } = require('https-proxy-agent');
+        apiClientOpts.httpsAgent = new HttpsProxyAgent(proxyUrl);
+        apiClientOpts.proxy = false;
     }
-};
-
-const proxyUrl = process.env.GENERAL_PROXY_URL;
-if (proxyUrl) {
-    const { HttpsProxyAgent } = require('https-proxy-agent');
-    apiClientOpts.httpsAgent = new HttpsProxyAgent(proxyUrl);
-    apiClientOpts.proxy = false; // Disable axios default proxy handling
+    
+    return axios.create(apiClientOpts);
 }
 
-const apiClient = axios.create(apiClientOpts);
-
 /**
- * Membeli slot email baru dari LuckMail (Random Outlook Domain)
+ * Membeli slot email baru dari LuckMail
+ * @param {string} apiKey - API Key LuckMail dari user
+ * @param {string[]} domains - Array domain yang dikonfigurasi user
  * @returns {Promise<{orderId: string, email: string}>}
  */
-async function purchaseEmail() {
+async function purchaseEmail(apiKey, domains) {
     try {
-        // Pilih domain secara acak
-        const randomDomain = ALLOWED_DOMAINS[Math.floor(Math.random() * ALLOWED_DOMAINS.length)];
+        if (!apiKey) {
+            throw new Error("No LuckMail API key configured. Go to ⚙️ My Settings to add yours.");
+        }
+
+        // Pilih domain secara acak dari yang diset user, fallback ke allowed domains
+        const validDomains = (domains && domains.length > 0) ? domains : ALLOWED_DOMAINS;
+        const randomDomain = validDomains[Math.floor(Math.random() * validDomains.length)];
         logger.info(`[LuckMail] Menyiapkan pembelian email dengan domain: ${randomDomain}`);
 
+        const apiClient = createApiClient(apiKey);
         const response = await apiClient.post('/email/purchase', {
             project_code: "openai",
             email_type: "ms_imap",
@@ -69,14 +77,13 @@ async function purchaseEmail() {
 
 /**
  * Polling untuk mengambil OTP dari order ID LuckMail.
- * Melakukan polling tiap 2 detik, maksimal selama 90 detik (45 kali).
- * Menggunakan sistem cache OTP agar tidak mengembalikan kode OTP basi.
- * 
+ *
  * @param {string} token - Token dari email yang dibeli.
  * @param {string} email - Alamat email (untuk mengecek last_otp cache).
+ * @param {string} apiKey - API Key LuckMail dari user
  * @returns {Promise<string|null>} - Kode OTP 6-digit atau null jika timeout.
  */
-async function fetchVerificationCode(token, email) {
+async function fetchVerificationCode(token, email, apiKey) {
     const maxRetries = 10;
     const delayMs = 2000;
     const lastOtp = db.getOtpCache(email);
@@ -85,6 +92,8 @@ async function fetchVerificationCode(token, email) {
     if (lastOtp) {
         logger.debug(`[LuckMail] Memiliki record otp sebelumnya: ${lastOtp}, akan di-ignore.`);
     }
+
+    const apiClient = createApiClient(apiKey);
 
     for (let i = 0; i < maxRetries; i++) {
         try {
@@ -131,9 +140,12 @@ async function fetchVerificationCode(token, email) {
 /**
  * Mengirimkan appeal karena email tidak menerima OTP
  * @param {number|string} purchaseId
+ * @param {string} apiKey
  */
-async function cancelEmail(purchaseId) {
+async function cancelEmail(purchaseId, apiKey) {
+    if (!apiKey) return;
     try {
+        const apiClient = createApiClient(apiKey);
         const response = await apiClient.post(`/appeal/create`, {
             appeal_type: 2,
             purchase_id: purchaseId,

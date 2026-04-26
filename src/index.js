@@ -11,6 +11,7 @@ const logger = require("./utils/logger");
 const luckMailApi = require("./utils/luckMailApi");
 const tMailApi = require("./utils/tMailApi");
 const { claimGopaySlot, releaseGopaySlot, triggerMacrodroidWebhook, resetAllGopaySlots } = require("./utils/gopayOtpFetcher");
+const { acquireGopaySlot } = require("./utils/gopayClaimQueue");
 const { generateStrongPassword } = require("./utils/passwordGenerator");
 
 const db = require("./db");
@@ -23,13 +24,13 @@ const audience = "https://api.openai.com/v1";
 
 // Function to run account creation task in isolation
 async function handleAccountTask(task) {
-    const { userId, chatId, email, mode, staticPassword, mailProvider } = task;
+    const { userId, chatId, email, mode, staticPassword, mailProvider, cancelToken } = task;
     const isTMail = mailProvider === 'tmail';
     
     // Fetch user settings from DB
     const userData = db.getUser(userId);
     if (!userData) {
-        telegramHandler.updateStatusFor(chatId, `🚫 <b>SYSTEM ERROR</b>\nData pengguna tidak ditemukan.`);
+        telegramHandler.updateStatusFor(chatId, `🚫 <b>SYSTEM ERROR</b>\nUser data not found.`);
         return;
     }
 
@@ -61,25 +62,33 @@ async function handleAccountTask(task) {
 
     let currentEmail = email;
     let token = null;
-    let purchaseId = null;    if (mode === 'auto_signup' || mode === 'auto_autopay') {
+    let purchaseId = null;
+
+    if (mode === 'auto_signup' || mode === 'auto_autopay') {
         const maxLuckRetries = 3;
         for (let attempt = 1; attempt <= maxLuckRetries; attempt++) {
+            // Check cancellation before each attempt
+            if (cancelToken && cancelToken.cancelled) {
+                logger.warn(`[#${threadId}] Task cancelled by user before email purchase.`);
+                return { success: false, email: '', error: 'Cancelled by user', mailProvider };
+            }
             try {
                 const providerName = isTMail ? 'T-Mail' : 'LuckMail';
-                telegramHandler.updateStatusFor(chatId, `🛍️ <b>Membeli Email via ${providerName}...</b>${attempt > 1 ? ` (Retry ${attempt}/${maxLuckRetries})` : ''}`);
+                telegramHandler.updateStatusFor(chatId, `🛒 <b>Purchasing Email via ${providerName}...</b>${attempt > 1 ? ` (Retry ${attempt}/${maxLuckRetries})` : ''}`);
                 
                 let purchase;
                 if (isTMail) {
-                    purchase = await tMailApi.generateEmail(tmailBaseUrl);
+                    purchase = await tMailApi.generateEmail(tmailBaseUrl, userData.tmailApiKey);
                     purchase.purchaseId = null;
                 } else {
-                    purchase = await luckMailApi.purchaseEmail();
+                    const luckDomains = userData.luckMailDomains ? userData.luckMailDomains.split(',').map(d => d.trim()).filter(Boolean) : [];
+                    purchase = await luckMailApi.purchaseEmail(userData.luckMailApiKey, luckDomains);
                 }
                 
                 currentEmail = purchase.email;
                 token = purchase.token;
                 purchaseId = purchase.purchaseId;
-                telegramHandler.updateStatusFor(chatId, `🛍️ <b>Email Didapat:</b> <code>${currentEmail}</code>`);
+                telegramHandler.updateStatusFor(chatId, `🛒 <b>Email Acquired:</b> <code>${currentEmail}</code>`);
                 break;
             } catch (e) {
                 if (attempt === maxLuckRetries) {
@@ -88,9 +97,20 @@ async function handleAccountTask(task) {
                     return { success: false, email: '', error: `${providerName}: ${e.message}`, mailProvider };
                 }
                 logger.warn(`Email purchase attempt ${attempt} failed: ${e.message}. Retrying in 5s...`);
-                await new Promise(r => setTimeout(r, 5000));
+                // Interruptible 5s wait — check cancel every 500ms
+                for (let w = 0; w < 10; w++) {
+                    await new Promise(r => setTimeout(r, 500));
+                    if (cancelToken && cancelToken.cancelled) {
+                        return { success: false, email: '', error: 'Cancelled by user', mailProvider };
+                    }
+                }
             }
         }
+    }
+
+    // Check if cancelled before initializing heavy browser engine
+    if (cancelToken && cancelToken.cancelled) {
+        return { success: false, email: currentEmail, error: 'Cancelled by user', mailProvider };
     }
 
     telegramHandler.updateStatusFor(chatId, `🚀 <b>Initializing Task...</b>`, { email: currentEmail || email, mode, name });
@@ -106,22 +126,20 @@ async function handleAccountTask(task) {
     const isAutopayMode = mode.includes('autopay') || mode.includes('auto_loginpay');
     if (otpServerUrl && isAutopayMode) {
         logger.info(`[Pool] Mencari slot GoPay yang tersedia...`);
-        const maxPoolAttempts = 300; // 10 menit (300 * 2s)
-        for (let i = 0; i < maxPoolAttempts; i++) {
-            activeSlot = await claimGopaySlot(otpServerUrl);
-            if (activeSlot) {
-                logger.success(`[Pool] Berhasil mengunci Slot #${activeSlot.id} (${activeSlot.phone})`);
-                break;
-            }
-            // Update status tiap 10 detik (i kelipatan 5 karena 5 * 2s = 10s)
-            if (i % 5 === 0) telegramHandler.updateStatusFor(chatId, `⌛ <b>Menunggu Slot GoPay...</b>\nSemua nomor sedang digunakan. Antri otomatis...`);
-            await new Promise(r => setTimeout(r, 2000)); // Cek tiap 2 detik
+        telegramHandler.updateStatusFor(chatId, `⌛ <b>Waiting for GoPay Slot...</b>\nBot is processing in turns, please wait...`);
+        
+        try {
+            // New fair queue system: wait until a slot is granted by coordinator
+            activeSlot = await acquireGopaySlot(userId, otpServerUrl);
+            logger.success(`[Pool] Berhasil mengunci Slot #${activeSlot.id} (${activeSlot.phone})`);
+        } catch (err) {
+            telegramHandler.updateStatusFor(chatId, `🚫 <b>POOL ERROR</b>\nPayment system failed to claim a GoPay slot from server: ${err.message}`);
+            return { success: false, email: currentEmail, error: "GoPay Pool Error" };
         }
+        
         if (!activeSlot) {
-            telegramHandler.updateStatusFor(chatId, `🚫 <b>POOL ERROR</b>\nSiistem pembayaran tidak dapat mengambil slot GoPay dari server. Harap hubungi admin.`);
-            const localCycleTLS = await initCycleTLS();
-            await localCycleTLS.exit().catch(()=>{});
-            return { success: false, error: "GoPay Pool Mandatory but Unavailable" };
+            telegramHandler.updateStatusFor(chatId, `🚫 <b>POOL ERROR</b>\nPayment system could not claim a GoPay slot. Please contact admin.`);
+            return { success: false, email: currentEmail, error: "GoPay Pool Mandatory but Unavailable" };
         }
     }
 
@@ -135,7 +153,7 @@ async function handleAccountTask(task) {
     const finalWebhook = activeSlot ? activeSlot.webhook_action : 'reset-link';
 
     if (isAutopayMode && !finalGopayPhone) {
-        telegramHandler.updateStatusFor(chatId, `⚠️ <b>SYSTEM ERROR</b>\nGoPay Pool tidak terkonfigurasi. Autopay dibatalkan.`);
+        telegramHandler.updateStatusFor(chatId, `⚠️ <b>SYSTEM ERROR</b>\nGoPay pool is not configured. Autopay cancelled.`);
         await localCycleTLS.exit().catch(()=>{});
         return { success: false, error: "Missing Pool Data" };
     }
@@ -144,27 +162,27 @@ async function handleAccountTask(task) {
     let otpFnProxy;
     if (mode.startsWith('auto_')) {
         otpFnProxy = async () => {
-            logger.info(`[#${threadId}] Menunggu OTP dari ${isTMail ? 'T-Mail' : 'LuckMail'} untuk ${currentEmail}...`);
+            logger.info(`[#${threadId}] Waiting for OTP from ${isTMail ? 'T-Mail' : 'LuckMail'} for ${currentEmail}...`);
             let code;
             if (isTMail) {
                 code = await tMailApi.fetchVerificationCode(token, currentEmail, tmailBaseUrl);
             } else {
-                code = await luckMailApi.fetchVerificationCode(token, currentEmail);
+                code = await luckMailApi.fetchVerificationCode(token, currentEmail, userData.luckMailApiKey);
             }
-            if (!code) throw new Error(`Timeout mengambil OTP dari ${isTMail ? 'T-Mail' : 'LuckMail'}`);
+            if (!code) throw new Error(`Timeout fetching OTP from ${isTMail ? 'T-Mail' : 'LuckMail'}`);
             return code;
         };
     } else {
         otpFnProxy = async () => {
-            logger.info(`[#${threadId}] Kode verifikasi dikirim ke ${currentEmail} — cek inbox.`);
-            return await telegramHandler.askTelegramUser(chatId, `Masukkan kode verifikasi untuk ${currentEmail}: `, `[#${threadId}] `);
+            logger.info(`[#${threadId}] Verification code sent to ${currentEmail} — check inbox.`);
+            return await telegramHandler.askTelegramUser(chatId, `Enter the verification code for ${currentEmail}: `, `[#${threadId}] `);
         };
     }
 
     try {
         const result = await telegramHandler.asyncLocalStorage.run(chatId, async () => {
             if (mode === 'retry_autopay') {
-                logger.info(`Proses Retry Autopay...`);
+                logger.info(`Retrying Autopay...`);
                 // Load account detail from db
                 const acc = db.getAccount(currentEmail);
                 if (!acc || !acc.accessToken) {
@@ -191,7 +209,7 @@ async function handleAccountTask(task) {
                     await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                 }
 
-                await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes);
+                await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider);
                 // Ekstrak refresh token dari cookie jar jika ada
                 let refreshToken = null;
                 if (aRes.cookieJar) {
@@ -270,7 +288,7 @@ async function handleAccountTask(task) {
                         await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                     }
 
-                    await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes);
+                    await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider);
                     // Ekstrak refresh token dari cookie jar jika ada
                     let refreshToken = null;
                     if (aRes.cookies) {
@@ -308,14 +326,36 @@ async function handleAccountTask(task) {
     }
 }
 
-async function handleAutopayResult(chatId, email, password, aRes) {
+async function handleAutopayResult(chatId, email, password, aRes, mailProvider) {
     const state = telegramHandler.getUserState(chatId);
+    
+    // Referral Bonus Function
+    const checkAndRewardReferrer = (userId) => {
+        const u = db.getUser(userId);
+        if (u && u.referredBy && !u.referralRewarded) {
+            db.addPoints(u.referredBy, 1);
+            db.incrementStat(u.referredBy, 'totalReferralsEarned');
+            db.saveUser(userId, { referralRewarded: true });
+        }
+    };
+
     if (aRes.success) {
         logger.success(`Autopay sukses untuk ${email}`);
         
         // Update DB Account to Plus
         const acc = db.getAccount(email);
         if (acc) db.saveAccount(email, { accountType: 'Plus' });
+
+        // Deduct points on SUCCESS
+        const cost = mailProvider === 'manual' ? 1 : 4;
+        try {
+            db.deductPoints(chatId, cost);
+            db.incrementStat(chatId, 'totalPlusCreated');
+            checkAndRewardReferrer(chatId);
+        } catch (e) {
+            logger.error(`[Pool] Gagal memotong point user ${chatId}: ${e.message}`);
+        }
+        db.incrementStat(chatId, 'totalAccountsCreated');
 
         // Jika dalam mode batch, jangan kirim pesan PREMIUM ACTIVATED per-akun agar tidak nyampah
         if (state && state.isBatchMode) {
@@ -335,6 +375,8 @@ async function handleAutopayResult(chatId, email, password, aRes) {
         // Store account as Free if it doesn't exist
         const acc = db.getAccount(email);
         if (!acc) db.saveAccount(email, { password, accountType: 'Free' });
+        
+        db.incrementStat(chatId, 'totalAccountsCreated'); // Tetap hitung sebagai account created meskipun free
 
         // Build inline markup for Retry Pay
         let inlineObj = null;

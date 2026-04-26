@@ -1,129 +1,236 @@
-const fs = require('fs');
 const path = require('path');
+const Database = require('better-sqlite3');
 const logger = require('./utils/logger');
 
-const DB_FILE = path.join(process.cwd(), 'users.json');
-const ACCOUNTS_FILE = path.join(process.cwd(), 'accounts.json');
-const OTP_CACHE_FILE = path.join(process.cwd(), 'otp_cache.json');
-const ORDERS_FILE = path.join(process.cwd(), 'orders.json');
-
-// Ensure DB file exists
-function initFile(file) {
-    if (!fs.existsSync(file)) {
-        fs.writeFileSync(file, JSON.stringify({}, null, 2), 'utf8');
-    }
+// Init SQLite DB
+const DB_PATH = path.join(process.cwd(), 'db.sqlite');
+let db;
+try {
+    db = new Database(DB_PATH);
+    db.pragma('journal_mode = WAL');
+} catch (e) {
+    logger.error("[DB] Failed to open db.sqlite: " + e.message);
+    process.exit(1);
 }
 
-function initDBs() {
-    initFile(DB_FILE);
-    initFile(ACCOUNTS_FILE);
-    initFile(OTP_CACHE_FILE);
-    initFile(ORDERS_FILE);
-}
-initDBs();
+// ----------------------
+// PREPARED STATEMENTS
+// ----------------------
+const stmtGetUser = db.prepare('SELECT * FROM users WHERE id = ?');
+const stmtHasUser = db.prepare('SELECT 1 FROM users WHERE id = ?');
+const stmtGetUserByRef = db.prepare('SELECT * FROM users WHERE referralCode = ?');
+const stmtInsertUserBase = db.prepare('INSERT OR IGNORE INTO users (id, firstName, registeredAt, referralCode) VALUES (?, ?, ?, ?)');
 
-function readJSON(file) {
-    try {
-        initFile(file);
-        const data = fs.readFileSync(file, 'utf8');
-        return JSON.parse(data);
-    } catch (e) {
-        logger.error(`[DB] Error reading ${path.basename(file)}: ` + e.message);
-        return {};
-    }
-}
+const stmtGetAccount = db.prepare('SELECT * FROM accounts WHERE email = ?');
+const stmtInsertAccount = db.prepare(`
+    INSERT INTO accounts (email, userId, password, accountType, accessToken, refreshToken, mailToken, updatedAt)
+    VALUES (@email, @userId, @password, @accountType, @accessToken, @refreshToken, @mailToken, @updatedAt)
+    ON CONFLICT(email) DO UPDATE SET
+        userId = excluded.userId,
+        password = excluded.password,
+        accountType = excluded.accountType,
+        accessToken = excluded.accessToken,
+        refreshToken = excluded.refreshToken,
+        mailToken = excluded.mailToken,
+        updatedAt = excluded.updatedAt
+`);
 
-function writeJSON(file, data) {
-    try {
-        fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
-    } catch (e) {
-        logger.error(`[DB] Error writing ${path.basename(file)}: ` + e.message);
-    }
-}
+const stmtGetOtp = db.prepare('SELECT otp FROM otp_cache WHERE email = ?');
+const stmtSaveOtp = db.prepare('INSERT OR REPLACE INTO otp_cache (email, otp) VALUES (?, ?)');
 
-// --- USERS ---
+const stmtGetOrderByEmail = db.prepare('SELECT * FROM orders WHERE email = ? LIMIT 1');
+const stmtSaveOrder = db.prepare('INSERT OR REPLACE INTO orders (orderId, email, status, date) VALUES (?, ?, ?, ?)');
+
+const stmtGetTotalReferrals = db.prepare('SELECT COUNT(*) as c FROM users WHERE referredBy = ?');
+
+// ----------------------
+// USERS
+// ----------------------
 function getUser(userId) {
-    const db = readJSON(DB_FILE);
-    return db[userId] || null;
-}
-
-function saveUser(userId, data) {
-    const db = readJSON(DB_FILE);
-    if (!db[userId]) {
-        db[userId] = {};
-    }
-    db[userId] = { ...db[userId], ...data };
-    writeJSON(DB_FILE, db);
-    return db[userId];
+    const row = stmtGetUser.get(userId.toString());
+    if (!row) return null;
+    // Map boolean integers back to boolean if needed, though JS considers 1 true and 0 false.
+    row.referralRewarded = !!row.referralRewarded;
+    return row;
 }
 
 function hasUser(userId) {
-    const db = readJSON(DB_FILE);
-    return !!db[userId];
+    return !!stmtHasUser.get(userId.toString());
 }
 
-function getPendingUsers() {
-    const db = readJSON(DB_FILE);
-    return Object.entries(db)
-        .map(([id, data]) => ({ id, ...data }))
-        .filter(user => user.status === 'pending');
-}
-
-function approveUser(userId) {
-    return saveUser(userId, { status: 'approved', approvedAt: new Date().toISOString() });
-}
-
-function rejectUser(userId) {
-    return saveUser(userId, { status: 'rejected', rejectedAt: new Date().toISOString() });
-}
-
-// --- ACCOUNTS ---
-function saveAccount(email, data) {
-    const accs = readJSON(ACCOUNTS_FILE);
-    if (!accs[email]) {
-        accs[email] = { email };
+function generateReferralCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    accs[email] = { ...accs[email], ...data, updatedAt: new Date().toISOString() };
-    writeJSON(ACCOUNTS_FILE, accs);
-    return accs[email];
+    return code;
 }
 
+function getUserByReferralCode(code) {
+    const row = stmtGetUserByRef.get(code);
+    if (!row) return null;
+    row.referralRewarded = !!row.referralRewarded;
+    return row;
+}
+
+function initUserData(userId, firstName) {
+    userId = userId.toString();
+    stmtInsertUserBase.run(userId, firstName || 'User', new Date().toISOString(), generateReferralCode());
+    // Give every new user 1 welcome point
+    saveUser(userId, { points: 1 });
+}
+
+// saveUser dinamik: Melakukan pembaruan parsial sesuai `data` param
+function saveUser(userId, data) {
+    userId = userId.toString();
+    const existing = stmtGetUser.get(userId);
+    if (!existing) {
+        // Fallback: create base first if it somehow doesn't exist
+        initUserData(userId, 'User');
+    }
+
+    const keys = Object.keys(data);
+    if (keys.length === 0) return getUser(userId);
+
+    // Filter valid keys to avoid SQL injection on columns
+    const allowedKeys = new Set([
+        'status', 'firstName', 'registeredAt', 'points', 'referralCode', 'referredBy', 'referralRewarded',
+        'totalAccountsCreated', 'totalPlusCreated', 'totalReferralsEarned', 'maxThreads', 'passwordMode',
+        'staticPassword', 'reportFormat', 'tmailBaseUrl', 'tmailApiKey', 'luckMailApiKey', 'luckMailDomains'
+    ]);
+
+    const updates = [];
+    const params = { id: userId };
+
+    for (const key of keys) {
+        if (allowedKeys.has(key)) {
+            updates.push(`${key} = @${key}`);
+            let val = data[key];
+            if (typeof val === 'boolean') val = val ? 1 : 0;
+            params[key] = val;
+        }
+    }
+
+    if (updates.length > 0) {
+        const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = @id`;
+        db.prepare(sql).run(params);
+    }
+    return getUser(userId);
+}
+
+function addPoints(userId, amount) {
+    const user = getUser(userId);
+    if (!user) return null;
+    const current = user.points || 0;
+    return saveUser(userId, { points: current + amount });
+}
+
+function deductPoints(userId, amount) {
+    const user = getUser(userId);
+    if (!user) throw new Error("User not found");
+    const current = user.points || 0;
+    if (current < amount) throw new Error("Insufficient points");
+    return saveUser(userId, { points: current - amount });
+}
+
+function hasEnoughPoints(userId, amount) {
+    const user = getUser(userId);
+    if (!user) return false;
+    return (user.points || 0) >= amount;
+}
+
+function incrementStat(userId, field) {
+    const user = getUser(userId);
+    if (!user) return null;
+    const current = user[field] || 0;
+    return saveUser(userId, { [field]: current + 1 });
+}
+
+function getUserStats(userId) {
+    userId = userId.toString();
+    const user = getUser(userId);
+    if (!user) return null;
+    
+    // Perbaiki fallback: Jika belum punya referral, generate!
+    if (!user.referralCode) {
+        const newRef = generateReferralCode();
+        saveUser(userId, { referralCode: newRef });
+        user.referralCode = newRef;
+    }
+
+    const { c: totalReferrals } = stmtGetTotalReferrals.get(userId);
+
+    return {
+        points: user.points || 0,
+        referralCode: user.referralCode,
+        totalReferrals,
+        totalAccountsCreated: user.totalAccountsCreated || 0,
+        totalPlusCreated: user.totalPlusCreated || 0
+    };
+}
+
+
+// ----------------------
+// ACCOUNTS
+// ----------------------
 function getAccount(email) {
-    const accs = readJSON(ACCOUNTS_FILE);
-    return accs[email] || null;
+    return stmtGetAccount.get(email) || null;
 }
 
-// --- OTP CACHE ---
+function saveAccount(email, data) {
+    // Kita baca data lama untuk di-merge
+    const existing = getAccount(email) || {};
+
+    const merged = { ...existing, ...data };
+    const params = {
+        email: email,
+        userId: merged.userId || null,
+        password: merged.password || null,
+        accountType: merged.accountType || null,
+        accessToken: merged.accessToken || null,
+        refreshToken: merged.refreshToken || null,
+        mailToken: merged.mailToken || null,
+        updatedAt: new Date().toISOString()
+    };
+    stmtInsertAccount.run(params);
+    return getAccount(email);
+}
+
+// ----------------------
+// OTP CACHE
+// ----------------------
 function saveOtpCache(email, otp) {
-    const cache = readJSON(OTP_CACHE_FILE);
-    cache[email] = otp;
-    writeJSON(OTP_CACHE_FILE, cache);
+    stmtSaveOtp.run(email, otp);
 }
 
 function getOtpCache(email) {
-    const cache = readJSON(OTP_CACHE_FILE);
-    return cache[email] || null;
+    const row = stmtGetOtp.get(email);
+    return row ? row.otp : null;
 }
 
-// --- ORDERS ---
-function saveOrder(orderId, email, status) {
-    const orders = readJSON(ORDERS_FILE);
-    orders[orderId] = { orderId, email, status, date: new Date().toISOString() };
-    writeJSON(ORDERS_FILE, orders);
-}
-
+// ----------------------
+// ORDERS
+// ----------------------
 function getOrderByEmail(email) {
-    const orders = readJSON(ORDERS_FILE);
-    return Object.values(orders).find(o => o.email === email) || null;
+    return stmtGetOrderByEmail.get(email) || null;
+}
+
+function saveOrder(orderId, email, status) {
+    stmtSaveOrder.run(orderId, email, status, new Date().toISOString());
 }
 
 module.exports = {
     getUser,
     saveUser,
     hasUser,
-    getPendingUsers,
-    approveUser,
-    rejectUser,
+    initUserData,
+    getUserByReferralCode,
+    addPoints,
+    deductPoints,
+    hasEnoughPoints,
+    incrementStat,
+    getUserStats,
     
     saveAccount,
     getAccount,

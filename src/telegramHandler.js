@@ -57,9 +57,9 @@ function getUserState(chatId) {
             isQueueProcessing: false,
             currentTaskInfo: null,
             batchResults: [], 
-            batchTarget: 0,          // Target akun PLUS yang harus berhasil
-            batchPlusCount: 0,       // Akun Plus yang sudah berhasil
-            batchTotalDispatched: 0, // Total task yang sudah dikirim ke antrian
+            batchTarget: 0,          // Target number of Plus accounts to create
+            batchPlusCount: 0,       // Plus accounts successfully created so far
+            batchTotalDispatched: 0, // Total tasks dispatched to queue
             isBatchMode: false,
             setupStep: null 
         });
@@ -92,9 +92,10 @@ const MENU_COMMANDS = new Set([
     '/start', 'menu', 'p',
     '🚀 Full Auto Plus',
     '💳 Auto Pay Bot',
-    '⚙️ Edit Data Saya',
-    '📊 Status Server',
-    '❓ Bantuan'
+    '⚙️ My Settings',
+    '📊 Server Status',
+    '❓ Help',
+    '👥 Referral'
 ]);
 
 const mainMenuKeyboard = {
@@ -102,44 +103,15 @@ const mainMenuKeyboard = {
         keyboard: [
             ['🚀 Full Auto Plus'],
             ['💳 Auto Pay Bot'],
-            ['⚙️ Edit Data Saya', '📊 Status Server'],
-            ['❓ Bantuan']
+            ['⚙️ My Settings', '📊 Server Status'],
+            ['👥 Referral', '❓ Help']
         ],
         resize_keyboard: true,
         is_persistent: true
     }
 };
 
-async function notifyAdminApprovalReq(userId, firstName, username) {
-    const adminIds = (process.env.ADMIN_ID || "").split(',').map(id => id.trim()).filter(id => id);
-    for (const adminId of adminIds) {
-        if (!adminId) continue;
-        const msg = `🚨 <b>PERMINTAAN IZIN BARU</b> 🚨\n\nUser ID: <code>${userId}</code>\nName: ${firstName}\nUsername: ${username ? '@'+username : 'none'}\n\nMohon persetujuannya:`;
-        try {
-            await bot.sendMessage(adminId, msg, {
-                parse_mode: 'HTML',
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { text: "✅ Approve", callback_data: `admin_approve_${userId}` },
-                            { text: "❌ Reject", callback_data: `admin_reject_${userId}` }
-                        ]
-                    ]
-                }
-            });
-        } catch (e) {
-            console.log(chalk.yellow(`[Bot] Gagal notifikasi admin ${adminId}: ${e.message}`));
-        }
-    }
-}
-
-function validateEmail(email) {
-    return String(email)
-        .toLowerCase()
-        .match(
-            /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
-        );
-}
+// Remvoed admin approve function
 
 function getSystemDashboardText() {
     const slots = workerPool.getActiveStatus();
@@ -207,34 +179,40 @@ function initTelegram() {
 
             // --- 0. Admin Flow (Approval / Reject) handled in callback_query, but check basic admin status
             
-            // --- 1. User Database Guard
+            // --- 1. User Database Guard & Registration
             if (!db.hasUser(chatId)) {
-                if (text === '/start') {
-                    db.saveUser(chatId, {
-                        status: 'pending',
-                        firstName: msg.from.first_name || 'User',
-                        registeredAt: new Date().toISOString()
-                    });
-                    bot.sendMessage(chatId, "👋 <b>Selamat Datang di GPT Creator!</b>\n\nSistem kami bersifat private public.\nPermintaan akses telah dikirimkan ke Admin. Harap tunggu persetujuan sebelum menggunakan layanan ini.", { parse_mode: 'HTML' });
-                    await notifyAdminApprovalReq(chatId, msg.from.first_name, msg.from.username);
+                if (text.startsWith('/start')) {
+                    // Extract referral code if present
+                    let referrerCode = null;
+                    if (text.includes('REF_')) {
+                        referrerCode = text.split(' ')[1].replace('REF_', '');
+                    }
+                    
+                    db.initUserData(chatId, msg.from.first_name);
+
+                    if (referrerCode) {
+                        const referrer = db.getUserByReferralCode(referrerCode);
+                        if (referrer) {
+                            db.saveUser(chatId, { referredBy: referrer.id, referralRewarded: true });
+                            db.addPoints(referrer.id, 1);
+                            bot.sendMessage(referrer.id, `🎉 <b>New Referral!</b>\nSomeone just registered using your invite link. You received <b>+1 point</b>!`, { parse_mode: 'HTML' }).catch(()=>{});
+                        }
+                    }
+
+                    const welcomeNew = "👋 <b>Welcome to GPT Creator Bot!</b>\n\nThis is a private automation service for ChatGPT Plus accounts.\n\n⚠️ <i>Before you start, please configure your settings via ⚙️ My Settings.</i>";
+                    bot.sendMessage(chatId, welcomeNew, { parse_mode: 'HTML', ...mainMenuKeyboard });
                 } else {
-                    bot.sendMessage(chatId, "⚠️ <b>Akses Ditolak</b>\nKirimkan /start terlebih dahulu untuk mendaftar.", { parse_mode: 'HTML' });
                 }
                 return;
             }
 
+            // Jika user LAMA memencet link referral
+            if (text.startsWith('/start REF_')) {
+                bot.sendMessage(chatId, "❌ <b>Referral Failed</b>\nYou cannot use an invite link because you are already a registered user.", { parse_mode: 'HTML' });
+                return;
+            }
+
             const userData = db.getUser(chatId);
-
-            if (userData.status === 'pending') {
-                bot.sendMessage(chatId, "⏳ <b>Akun Pending</b>\nPermintaan Akses Anda masih menunggu persetujuan Admin.", { parse_mode: 'HTML' });
-                return;
-            }
-
-            if (userData.status === 'rejected') {
-                bot.sendMessage(chatId, "❌ <b>Akses Ditolak</b>\nAdmin menolak permintaan Anda.", { parse_mode: 'HTML' });
-                return;
-            }
-
             // User Approved 
             
             // Resolving Prompt manually triggered setup steps
@@ -245,7 +223,7 @@ function initTelegram() {
                 
                 const userMsgId = msg.message_id;
                 
-                bot.sendMessage(chatId, `✨ <b>Input Diterima:</b> <code>${text}</code>`, { parse_mode: "HTML" }).then(sentMsg => {
+                bot.sendMessage(chatId, `✨ <b>Input Received:</b> <code>${text}</code>`, { parse_mode: "HTML" }).then(sentMsg => {
                     setTimeout(() => {
                         if (state.lastPromptMessageId) bot.deleteMessage(chatId, state.lastPromptMessageId).catch(() => {});
                         bot.deleteMessage(chatId, userMsgId).catch(() => {});
@@ -258,46 +236,214 @@ function initTelegram() {
                 return;
             }
             
-            // Jika ada prompt aktif dan user menekan tombol menu, abaikan (jangan ganggu proses)
+            // If user presses a menu button while a prompt is active, warn them
             if (state.activePromptResolve && MENU_COMMANDS.has(text)) {
-                // Kirim peringatan halus agar user tahu ada proses aktif
-                bot.sendMessage(chatId, "⚠️ <b>Ada proses yang sedang menunggu input Anda.</b>\n<i>Balas pertanyaan di atas, atau klik 🛑 Batalkan Sesi untuk membatalkan.</i>", { parse_mode: 'HTML' }).catch(() => {});
+                bot.sendMessage(chatId, "⚠️ <b>A task is waiting for your input.</b>\n<i>Reply to the question above, or click 🛑 Cancel Session to abort.</i>", { parse_mode: 'HTML' }).catch(() => {});
                 return;
             }
 
             // If user explicitly asks to setup/edit
-            if (text === '⚙️ Edit Data Saya') {
+            if (text === '⚙️ My Settings') {
                 sendSettingsMenu(chatId, userData);
                 return;
             }
 
             // Commands and Menu Actions
             if (text === '/start' || text.toLowerCase() === 'menu' || text === 'p') {
-                const welcomeText = `🤖 <b>ZYVENOX GPT CREATOR</b>\n━━━━━━━━━━━━━━━━━━\nSelamat datang di sistem otomatisasi ChatGPT.\n\nSilakan pilih menu di bawah ini untuk memulai:`;
+                const uStats = db.getUserStats(chatId) || { points: 0, referralCode: 'N/A' };
+                const welcomeText = `🤖 <b>GPT CREATOR BOT</b>\n━━━━━━━━━━━━━━━━━━\nWelcome to the private automation service.\n\n💎 <b>Points Balance:</b> ${uStats.points}\n🔗 <b>Referral:</b> t.me/${(await bot.getMe()).username}?start=REF_${uStats.referralCode}\n\nPlease choose an option below:`;
                 bot.sendMessage(chatId, welcomeText, { parse_mode: 'HTML', ...mainMenuKeyboard });
                 return;
             }
 
-            if (text === '📊 Status Server') {
+            // Admin Command: /setthreads <userId> <amount>
+            if (text.startsWith('/setthreads')) {
+                const adminIds = (process.env.ADMIN_ID || '').split(',').map(id => id.trim());
+                if (!adminIds.includes(chatId)) {
+                    bot.sendMessage(chatId, "❌ Access denied.");
+                    return;
+                }
+                const parts = text.split(' ');
+                if (parts.length < 3) {
+                    bot.sendMessage(chatId, "⚠️ Usage: <code>/setthreads &lt;userId&gt; &lt;amount&gt;</code>", { parse_mode: 'HTML' });
+                    return;
+                }
+                const targetUserId = parts[1];
+                const threads = parseInt(parts[2]);
+                if (isNaN(threads) || threads < 1) {
+                    bot.sendMessage(chatId, "⚠️ Thread count must be a number > 0.");
+                    return;
+                }
+                if (!db.hasUser(targetUserId)) {
+                    bot.sendMessage(chatId, "⚠️ User not found in database.");
+                    return;
+                }
+                db.saveUser(targetUserId, { maxThreads: threads });
+                bot.sendMessage(chatId, `✅ <b>User ${targetUserId}</b> — max threads set to <b>${threads}</b>`, { parse_mode: 'HTML' });
+                return;
+            }
+
+            // Admin Command: /addpoints <userId> <amount>
+            if (text.startsWith('/addpoints')) {
+                const adminIds = (process.env.ADMIN_ID || '').split(',').map(id => id.trim());
+                if (!adminIds.includes(chatId)) {
+                    bot.sendMessage(chatId, "❌ Access denied.");
+                    return;
+                }
+                const parts = text.split(' ');
+                if (parts.length < 3) {
+                    bot.sendMessage(chatId, "⚠️ Usage: <code>/addpoints &lt;userId&gt; &lt;amount&gt;</code>", { parse_mode: 'HTML' });
+                    return;
+                }
+                const targetUserId = parts[1];
+                const amount = parseInt(parts[2]);
+                if (isNaN(amount)) {
+                    bot.sendMessage(chatId, "⚠️ Amount must be a number.");
+                    return;
+                }
+                if (!db.hasUser(targetUserId)) {
+                    bot.sendMessage(chatId, "⚠️ User not found in database.");
+                    return;
+                }
+                const updated = db.addPoints(targetUserId, amount);
+                bot.sendMessage(chatId, `✅ <b>User ${targetUserId}</b>\n+${amount} points added.\n💎 New Balance: <b>${updated.points}</b>`, { parse_mode: 'HTML' });
+                return;
+            }
+
+            // Admin Command: /setpoints <userId> <amount>
+            if (text.startsWith('/setpoints')) {
+                const adminIds = (process.env.ADMIN_ID || '').split(',').map(id => id.trim());
+                if (!adminIds.includes(chatId)) {
+                    bot.sendMessage(chatId, "❌ Access denied.");
+                    return;
+                }
+                const parts = text.split(' ');
+                if (parts.length < 3) {
+                    bot.sendMessage(chatId, "⚠️ Usage: <code>/setpoints &lt;userId&gt; &lt;amount&gt;</code>", { parse_mode: 'HTML' });
+                    return;
+                }
+                const targetUserId = parts[1];
+                const amount = parseInt(parts[2]);
+                if (isNaN(amount) || amount < 0) {
+                    bot.sendMessage(chatId, "⚠️ Amount must be a non-negative number.");
+                    return;
+                }
+                if (!db.hasUser(targetUserId)) {
+                    bot.sendMessage(chatId, "⚠️ User not found in database.");
+                    return;
+                }
+                db.saveUser(targetUserId, { points: amount });
+                bot.sendMessage(chatId, `✅ <b>User ${targetUserId}</b>\n💎 Points set to: <b>${amount}</b>`, { parse_mode: 'HTML' });
+                return;
+            }
+
+            // Admin Command: /userinfo <userId>
+            if (text.startsWith('/userinfo')) {
+                const adminIds = (process.env.ADMIN_ID || '').split(',').map(id => id.trim());
+                if (!adminIds.includes(chatId)) {
+                    bot.sendMessage(chatId, "❌ Access denied.");
+                    return;
+                }
+                const parts = text.split(' ');
+                if (parts.length < 2) {
+                    bot.sendMessage(chatId, "⚠️ Usage: <code>/userinfo &lt;userId&gt;</code>", { parse_mode: 'HTML' });
+                    return;
+                }
+                const targetUserId = parts[1];
+                const stats = db.getUserStats(targetUserId);
+                const user = db.getUser(targetUserId);
+                if (!stats || !user) {
+                    bot.sendMessage(chatId, "⚠️ User not found in database.");
+                    return;
+                }
+                bot.sendMessage(chatId,
+                    `👤 <b>USER INFO</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `🆔 ID        : <code>${targetUserId}</code>\n` +
+                    `👋 Name      : ${user.firstName || 'N/A'}\n` +
+                    `💎 Points    : <b>${stats.points}</b>\n` +
+                    `📧 Accounts  : ${stats.totalAccountsCreated}\n` +
+                    `⭐ Plus Made : ${stats.totalPlusCreated}\n` +
+                    `👥 Referrals : ${stats.totalReferrals}\n` +
+                    `🔗 Ref Code  : <code>${stats.referralCode}</code>\n` +
+                    `🔒 Threads   : ${user.maxThreads || 1}\n` +
+                    `📅 Joined    : ${user.registeredAt ? user.registeredAt.split('T')[0] : 'N/A'}`,
+                    { parse_mode: 'HTML' }
+                );
+                return;
+            }
+
+            // Admin Command: /listadmin — Show all admin commands
+            if (text === '/listadmin') {
+                const adminIds = (process.env.ADMIN_ID || '').split(',').map(id => id.trim());
+                if (!adminIds.includes(chatId)) {
+                    bot.sendMessage(chatId, "❌ Access denied.");
+                    return;
+                }
+                bot.sendMessage(chatId,
+                    `🛠️ <b>ADMIN COMMANDS</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `<code>/addpoints &lt;userId&gt; &lt;amount&gt;</code>\nAdd points to a user\n\n` +
+                    `<code>/setpoints &lt;userId&gt; &lt;amount&gt;</code>\nSet a user's points to exact value\n\n` +
+                    `<code>/setthreads &lt;userId&gt; &lt;amount&gt;</code>\nSet max threads for a user\n\n` +
+                    `<code>/userinfo &lt;userId&gt;</code>\nView detailed user info`,
+                    { parse_mode: 'HTML' }
+                );
+                return;
+            }
+
+            if (text === '📊 Server Status') {
                 bot.sendMessage(chatId, getSystemDashboardText(), { parse_mode: 'HTML', ...mainMenuKeyboard });
                 return;
             }
             
-            if (text === '❓ Bantuan') {
-                bot.sendMessage(chatId, "Jika Anda butuh bantuan, kirimkan email yang valid ke sistem, dan Anda dapat memilih format pembuatan akun. Data Anda dapat diubah di menu Edit Data Saya.", mainMenuKeyboard);
+            if (text === '❓ Help') {
+                bot.sendMessage(chatId, "Welcome to GPT Creator. Use the menu buttons to generate ChatGPT Plus accounts automatically. Configure your preferences and API keys in ⚙️ My Settings first.", mainMenuKeyboard);
+                return;
+            }
+
+            if (text === '👥 Referral' || text === '/referral') {
+                const stats = db.getUserStats(chatId) || { totalReferrals: 0, points: 0, referralCode: 'N/A' };
+                const botUser = await bot.getMe();
+                bot.sendMessage(chatId, 
+                    `🔗 <b>YOUR INVITE LINK</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `👥 <b>People Invited:</b> ${stats.totalReferrals}\n\n` +
+                    `<b>Link:</b> t.me/${botUser.username}?start=REF_${stats.referralCode}\n\n` +
+                    `<i>Share this link to earn +1 point for every referral who successfully creates their first ChatGPT Plus account!</i>`,
+                    { parse_mode: 'HTML', ...mainMenuKeyboard }
+                );
+                return;
+            }
+
+            if (text === '/mystat') {
+                const stats = db.getUserStats(chatId) || { points: 0, totalAccountsCreated: 0, totalPlusCreated: 0, totalReferrals: 0, referralCode: 'N/A' };
+                bot.sendMessage(chatId, 
+                    `📊 <b>YOUR STATS</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `💎 <b>Points Balance :</b> ${stats.points}\n` +
+                    `📧 <b>Accounts Made  :</b> ${stats.totalAccountsCreated}\n` +
+                    `⭐ <b>Plus Accounts  :</b> ${stats.totalPlusCreated}\n` +
+                    `👥 <b>Total Referrals:</b> ${stats.totalReferrals}\n` +
+                    `🔗 <b>Referral Code  :</b> <code>${stats.referralCode}</code>`,
+                    { parse_mode: 'HTML', ...mainMenuKeyboard }
+                );
                 return;
             }
 
             if (text === '🚀 Full Auto Plus') {
                 if (workerPool.isUserActive(chatId)) {
-                    bot.sendMessage(chatId, "❌ <b>Proses Anda masih berjalan.</b>\nTunggu hingga selesai atau batalkan dulu.", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    bot.sendMessage(chatId, "❌ <b>A task is already running.</b>\nWait for it to complete or cancel first.", { parse_mode: 'HTML', ...mainMenuKeyboard });
                     return;
                 }
+                
+                // Point Gate
+                if (!db.hasEnoughPoints(chatId, 4)) {
+                    bot.sendMessage(chatId, `❌ <b>Not Enough Points</b>\n━━━━━━━━━━━━━━━━━━\nRequired : 4 points (Full Auto Plus)\nBalance  : ${db.getUserStats(chatId)?.points || 0} points\n\n💡 <i>Share your referral link to earn more points!</i>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    return;
+                }
+
                 const buttons = [
                     [{ text: "🍀 LuckMail", callback_data: 'fullpro_luckmail' }, { text: "📬 T-Mail", callback_data: 'fullpro_tmail' }]
                 ];
                 bot.sendMessage(chatId,
-                    `🚀 <b>Full Auto Plus</b>\n━━━━━━━━━━━━━━━━━━\nSistem akan otomatis signup, ambil OTP, lalu aktivasi ChatGPT Plus.\n\nPilih provider email:`,
+                    `🚀 <b>Full Auto Plus</b>\n━━━━━━━━━━━━━━━━━━\nThe system will automatically sign up, get OTP, and activate ChatGPT Plus. (Cost: <b>4 points/success</b>)\n\nChoose an email provider:`,
                     { parse_mode: "HTML", reply_markup: { inline_keyboard: buttons } }
                 );
                 return;
@@ -305,38 +451,45 @@ function initTelegram() {
 
             if (text === '💳 Auto Pay Bot') {
                 if (workerPool.isUserActive(chatId)) {
-                    bot.sendMessage(chatId, "❌ <b>Proses Anda masih berjalan.</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    bot.sendMessage(chatId, "❌ <b>A task is already running.</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
                     return;
                 }
+
+                // Point Gate
+                if (!db.hasEnoughPoints(chatId, 1)) {
+                    bot.sendMessage(chatId, `❌ <b>Not Enough Points</b>\n━━━━━━━━━━━━━━━━━━\nRequired : 1 point (Auto Pay Bot)\nBalance  : ${db.getUserStats(chatId)?.points || 0} points\n\n💡 <i>Share your referral link to earn more points!</i>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    return;
+                }
+
                 const uData = db.getUser(chatId);
                 if (!uData.passwordMode) {
-                    bot.sendMessage(chatId, "⚠️ <b>Mode Password Belum Diset</b>\nSilakan atur di menu ⚙️ Edit Data Saya terlebih dahulu.", { parse_mode: "HTML", ...mainMenuKeyboard });
+                    bot.sendMessage(chatId, "⚠️ <b>Password Mode Not Set</b>\nGo to ⚙️ My Settings to configure it first.", { parse_mode: "HTML", ...mainMenuKeyboard });
                     return;
                 }
-                const emailInput = await askTelegramUser(chatId, "Masukkan <b>Alamat Email</b> yang ingin didaftarkan:", "<b>[#AUTO-PAY]</b> ");
+                const emailInput = await askTelegramUser(chatId, "Enter the <b>Email Address</b> to register:", "<b>[#AUTO-PAY]</b> ");
                 if (!emailInput || !validateEmail(emailInput)) {
-                    bot.sendMessage(chatId, "❌ Format email tidak valid atau dibatalkan.", mainMenuKeyboard);
+                    bot.sendMessage(chatId, "❌ Invalid email format or cancelled.", mainMenuKeyboard);
                     return;
                 }
                 let staticPass = null;
                 if (uData.passwordMode === 'static') {
                     let isValid = false;
                     while (!isValid) {
-                        staticPass = await askTelegramUser(chatId, `🔑 Masukkan <b>Password</b> untuk akun <code>${emailInput}</code>:\n<i>(min. 12 karakter, huruf besar+kecil+angka)</i>`);
+                        staticPass = await askTelegramUser(chatId, `🔑 Enter the <b>Password</b> for account <code>${emailInput}</code>:\n<i>(min. 12 chars, uppercase + lowercase + numbers)</i>`);
                         if (!staticPass) return;
                         if (!isValidPassword(staticPass)) {
-                            await bot.sendMessage(chatId, "❌ <b>Password tidak memenuhi syarat.</b>\nMin. 12 karakter, huruf besar (A-Z), huruf kecil (a-z), angka (0-9).", { parse_mode: 'HTML' });
+                            await bot.sendMessage(chatId, "❌ <b>Password does not meet requirements.</b>\nMin. 12 chars, uppercase (A-Z), lowercase (a-z), numbers (0-9).", { parse_mode: 'HTML' });
                         } else {
                             isValid = true;
                         }
                     }
                 }
                 const pos = workerPool.enqueueTask({ userId: chatId, chatId, email: emailInput, mode: 'autopay', staticPassword: staticPass, mailProvider: 'manual' });
-                updateStatusFor(chatId, `📥 <b>Antrian Ditambahkan</b>\n📧 Email: <code>${emailInput}</code>\n📊 Urutan: ${pos}\n<i>Menunggu giliran pemrosesan...</i>`, { email: emailInput, mode: 'autopay' }, true);
+                updateStatusFor(chatId, `📥 <b>Task Queued</b>\n📧 Email: <code>${emailInput}</code>\n📊 Position: ${pos}\n<i>Waiting to be processed...</i>`, { email: emailInput, mode: 'autopay' }, true);
                 return;
             }
 
-            bot.sendMessage(chatId, "Silakan gunakan menu di bawah untuk berinteraksi.", mainMenuKeyboard);
+            bot.sendMessage(chatId, "Use the menu buttons below.", mainMenuKeyboard);
         });
 
         // Handle Callbacks
@@ -344,36 +497,14 @@ function initTelegram() {
             const chatId = query.message.chat.id.toString();
             // Ignore callback queries from old messages
             if (query.message && query.message.date < startTime) {
-                bot.answerCallbackQuery(query.id, { text: "⚠️ Pesan kedaluwarsa, silakan buat permintaan baru." }).catch(() => {});
+                bot.answerCallbackQuery(query.id, { text: "⚠️ This message has expired, please make a new request." }).catch(() => {});
                 return;
             }
 
             const data = query.data;
 
-            // Admin Actions
-            if (data.startsWith('admin_approve_') || data.startsWith('admin_reject_')) {
-                const parts = data.split('_');
-                const action = parts[1];
-                const tarId = parts[2];
+            // ---
 
-                bot.answerCallbackQuery(query.id, { text: `User ${tarId} diproses.` }).catch(() => {});
-                
-                if (action === 'approve') {
-                    db.approveUser(tarId);
-                    bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id });
-                    bot.sendMessage(chatId, `✅ Berhasil setujui User ${tarId}.`);
-                    
-                    // Notify target user
-                    bot.sendMessage(tarId, "🎉 <b>Akses Disetujui!</b>\n\nSekarang Anda bisa mendaftar/login akun ChatGPT.\n⚠️ <i>Sebelum memulai, atur mode password Anda di menu ⚙️ Edit Data Saya.</i>", { parse_mode: 'HTML', ...mainMenuKeyboard });
-                } else if (action === 'reject') {
-                    db.rejectUser(tarId);
-                    bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id });
-                    bot.sendMessage(chatId, `❌ Berhasil reject User ${tarId}.`);
-                    
-                    bot.sendMessage(tarId, "❌ <b>Akses Ditolak</b>", { parse_mode: 'HTML' });
-                }
-                return;
-            }
 
             const userData = db.getUser(chatId);
 
@@ -382,17 +513,17 @@ function initTelegram() {
                 bot.answerCallbackQuery(query.id).catch(() => {});
                 bot.deleteMessage(chatId, query.message.message_id).catch(()=>{});
                 bot.sendMessage(chatId,
-                    `🔑 <b>Mode Password Akun</b>\n━━━━━━━━━━━━━━━━━━\n` +
-                    `Pilih cara password akun ChatGPT dibuat:\n\n` +
-                    `🔄 <b>Otomatis (Random)</b> — sistem generate password unik setiap proses.\n` +
-                    `🔑 <b>Manual (Static)</b> — Anda diminta input password setiap memulai proses.`,
+                    `🔑 <b>Account Password Mode</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `Choose how account passwords are created:\n\n` +
+                    `🔄 <b>Auto (Random)</b> — System generates a unique password each time.\n` +
+                    `🔑 <b>Manual (Static)</b> — You input a password each time you start.`,
                     {
                         parse_mode: 'HTML',
                         reply_markup: {
                             inline_keyboard: [
-                                [{ text: "🔄 Generate Otomatis (Random)", callback_data: "set_pass_random" }],
-                                [{ text: "🔑 Input Manual (Static)", callback_data: "set_pass_static" }],
-                                [{ text: "❌ Batal", callback_data: "show_main_menu" }]
+                                [{ text: "🔄 Auto Generate (Random)", callback_data: "set_pass_random" }],
+                                [{ text: "🔑 Manual Input (Static)", callback_data: "set_pass_static" }],
+                                [{ text: "❌ Cancel", callback_data: "show_main_menu" }]
                             ]
                         }
                     }
@@ -404,7 +535,7 @@ function initTelegram() {
                 bot.answerCallbackQuery(query.id).catch(() => {});
                 bot.deleteMessage(chatId, query.message.message_id).catch(()=>{});
                 db.saveUser(chatId, { passwordMode: 'random' });
-                bot.sendMessage(chatId, "✅ <b>Mode Password: Otomatis (Random)</b>\nSistem akan men-generate password unik setiap proses.", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                bot.sendMessage(chatId, "✅ <b>Password Mode: Auto (Random)</b>\nSystem will generate a unique password each time.", { parse_mode: 'HTML', ...mainMenuKeyboard });
                 return;
             }
 
@@ -416,17 +547,16 @@ function initTelegram() {
                 // Langsung tanya password yang ingin dipakai
                 let isValid = false;
                 while (!isValid) {
-                    const inputPass = await askTelegramUser(chatId, `🔑 Masukkan <b>Password</b> yang ingin dipakai untuk semua akun:\n<i>(min. 12 karakter, huruf besar+kecil+angka)</i>`);
+                    const inputPass = await askTelegramUser(chatId, `🔑 Enter the <b>Password</b> to use for all accounts:\n<i>(min. 12 chars, uppercase + lowercase + numbers)</i>`);
                     if (!inputPass) {
-                        // User cancel
-                        bot.sendMessage(chatId, "⚠️ Password belum diset. Mode tetap Static, tapi Anda akan diminta password setiap kali memulai proses.", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                        bot.sendMessage(chatId, "⚠️ Password not set. Mode remains Static — you'll be prompted each time.", { parse_mode: 'HTML', ...mainMenuKeyboard });
                         return;
                     }
                     if (!isValidPassword(inputPass)) {
-                        await bot.sendMessage(chatId, "❌ <b>Password tidak memenuhi syarat.</b>\nMin. 12 karakter, huruf besar (A-Z), huruf kecil (a-z), angka (0-9).", { parse_mode: 'HTML' });
+                        await bot.sendMessage(chatId, "❌ <b>Password does not meet requirements.</b>\nMin. 12 chars, uppercase (A-Z), lowercase (a-z), numbers (0-9).", { parse_mode: 'HTML' });
                     } else {
                         db.saveUser(chatId, { staticPassword: inputPass });
-                        bot.sendMessage(chatId, `✅ <b>Mode Password: Manual (Static)</b>\nPassword disimpan: <code>${inputPass}</code>\n\n<i>Password ini akan dipakai untuk semua akun yang dibuat.</i>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                        bot.sendMessage(chatId, `✅ <b>Password Mode: Manual (Static)</b>\nPassword saved: <code>${inputPass}</code>\n\n<i>This password will be used for all created accounts.</i>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
                         isValid = true;
                     }
                 }
@@ -434,14 +564,23 @@ function initTelegram() {
             }
             
             if (data === 'cancel_process') {
-                bot.answerCallbackQuery(query.id, { text: "🛑 Membatalkan proses Anda..." }).catch(() => {});
+                bot.answerCallbackQuery(query.id, { text: "🛑 Cancelling your task..." }).catch(() => {});
                 const state = getUserState(chatId);
-                // Kita cabut user dari workerPool dan antrian
+                // Signal the running task to stop via cancellation token
+                workerPool.cancelTokenForUser(chatId);
+                // Remove pending queue items and release the pool slot
                 workerPool.cancelUserQueue(chatId);
                 workerPool.cancelUserActiveToken(chatId);
                 
+                // Reset batch mode if applicable
+                state.isBatchMode = false;
+                state.batchResults = [];
+                state.batchTarget = 0;
+                state.batchPlusCount = 0;
+                state.batchTotalDispatched = 0;
+
                 if (state.lastStatusMessageId) {
-                    bot.editMessageText(`🛑 <b>AKUN DIBATALKAN</b>\nAnda membatalkan sesi ini.`, {
+                    bot.editMessageText(`🛑 <b>SESSION CANCELLED</b>\nYou have cancelled this session.`, {
                         chat_id: chatId,
                         message_id: state.lastStatusMessageId,
                         parse_mode: 'HTML',
@@ -454,13 +593,13 @@ function initTelegram() {
                     resolve(null);
                 }
                 state.currentTaskInfo = null;
-                bot.sendMessage(chatId, "✅ Proses berhasil dibatalkan.", mainMenuKeyboard);
+                bot.sendMessage(chatId, "✅ Task successfully cancelled.", mainMenuKeyboard);
                 return;
             }
             
             if (data === 'show_main_menu') {
                 bot.answerCallbackQuery(query.id).catch(() => {});
-                const welcomeText = `🤖 <b>ZYVENOX GPT CREATOR</b>\n━━━━━━━━━━━━━━━━━━\nSelamat datang di sistem otomatisasi ChatGPT.\n\nSilakan pilih menu di bawah ini untuk memulai:`;
+                const welcomeText = `🤖 <b>GPT CREATOR BOT</b>\n━━━━━━━━━━━━━━━━━━\nWelcome back to the automation service.\n\nPlease choose an option below:`;
                 bot.sendMessage(chatId, welcomeText, { parse_mode: 'HTML', ...mainMenuKeyboard });
                 return;
             }
@@ -474,41 +613,52 @@ function initTelegram() {
                 bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
 
                 if (workerPool.isUserBusy && workerPool.isUserBusy(chatId)) {
-                    bot.sendMessage(chatId, "⚠️ <b>Anda masih punya proses berjalan.</b>\nTunggu hingga selesai atau batalkan dulu.", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    bot.sendMessage(chatId, "⚠️ <b>You still have a running task.</b>\nWait for it to complete or cancel first.", { parse_mode: 'HTML', ...mainMenuKeyboard });
                     return;
                 }
 
                 const uData = db.getUser(chatId);
-                if (!uData.passwordMode) {
-                    bot.sendMessage(chatId, "⚠️ <b>Mode Password Belum Diset</b>\nSilakan atur di menu ⚙️ Edit Data Saya terlebih dahulu.", { parse_mode: "HTML", ...mainMenuKeyboard });
+                
+                // Extra checks for Mail Providers
+                if (mailProvider === 'luckmail' && !uData.luckMailApiKey) {
+                    bot.sendMessage(chatId, "❌ <b>LuckMail API Key not set.</b>\nGo to ⚙️ My Settings to add your key first.", { parse_mode: "HTML", ...mainMenuKeyboard });
+                    return;
+                }
+                if (mailProvider === 'tmail' && !uData.tmailApiKey) {
+                    bot.sendMessage(chatId, "❌ <b>T-Mail API Key not set.</b>\nGo to ⚙️ My Settings to add your key first.", { parse_mode: "HTML", ...mainMenuKeyboard });
                     return;
                 }
 
-                const jumlahStr = await askTelegramUser(chatId, `Berapa jumlah akun <b>${providerName}</b> yang ingin dibuat?\n<i>(Ketik angka, contoh: 3)</i>`, "<b>[#BATCH]</b> ");
-                const jumlah = parseInt(jumlahStr, 10);
-                if (!jumlahStr || isNaN(jumlah) || jumlah < 1) {
-                    bot.sendMessage(chatId, "❌ Jumlah tidak valid. Proses dibatalkan.", mainMenuKeyboard);
+                if (!uData.passwordMode) {
+                    bot.sendMessage(chatId, "⚠️ <b>Password Mode Not Set</b>\nGo to ⚙️ My Settings to configure it first.", { parse_mode: "HTML", ...mainMenuKeyboard });
+                    return;
+                }
+
+                const amountStr = await askTelegramUser(chatId, `How many <b>${providerName}</b> accounts do you want to create?\n<i>(Type a number, e.g. 3)</i>`, "<b>[#BATCH]</b> ");
+                const amount = parseInt(amountStr, 10);
+                if (!amountStr || isNaN(amount) || amount < 1) {
+                    bot.sendMessage(chatId, "❌ Invalid number. Process cancelled.", mainMenuKeyboard);
                     return;
                 }
 
                 const state = getUserState(chatId);
                 state.batchResults = [];
                 state.batchPlusCount = 0;
-                state.batchTotalDispatched = jumlah;
-                state.batchTarget = jumlah;
+                state.batchTotalDispatched = amount;
+                state.batchTarget = amount;
                 state.isBatchMode = true;
                 clearBatchProgress(chatId);
 
-                for (let bIdx = 0; bIdx < jumlah; bIdx++) {
+                for (let bIdx = 0; bIdx < amount; bIdx++) {
                     workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay', mailProvider });
                 }
 
                 const batchInitText = `📊 <b>FULL AUTO PLUS (${providerName})</b>\n` +
                                       `━━━━━━━━━━━━━━━━━━\n` +
-                                      `✅ Akun Plus terbuat: <b>0 / ${jumlah}</b>\n` +
-                                      `📦 Total proses: <b>0</b>\n` +
-                                      `<i>Memulai batch...</i>`;
-                const reply_markup = { inline_keyboard: [[{ text: "🛑 Batalkan Batch", callback_data: "cancel_process" }]] };
+                                      `✅ Plus accounts created: <b>0 / ${amount}</b>\n` +
+                                      `📦 Total tasks: <b>0</b>\n` +
+                                      `<i>Starting batch...</i>`;
+                const reply_markup = { inline_keyboard: [[{ text: "🛑 Cancel Batch", callback_data: "cancel_process" }]] };
                 bot.sendMessage(chatId, batchInitText, { parse_mode: 'HTML', reply_markup }).then(sent => {
                     if (sent) {
                         state.lastStatusMessageId = sent.message_id;
@@ -523,18 +673,66 @@ function initTelegram() {
                 bot.answerCallbackQuery(query.id).catch(() => {});
                 bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
                 const inputUrl = await askTelegramUser(chatId,
-                    `🌐 Masukkan <b>T-Mail Base URL</b> baru:\n<i>(contoh: https://mail.zyvenox.my.id)</i>\n<i>Kirim "-" untuk reset ke default</i>`);
+                    `🌐 Enter new <b>T-Mail Base URL</b>:\n<i>(example: https://mail.zyvenox.my.id)</i>\n<i>Send "-" to reset to default</i>`);
                 if (!inputUrl) return;
                 let finalUrl = inputUrl.trim();
                 if (finalUrl === '-' || finalUrl === '') {
                     db.saveUser(chatId, { tmailBaseUrl: null });
-                    bot.sendMessage(chatId, `✅ <b>T-Mail URL direset ke default</b>\n🌐 URL: <code>https://mail.zyvenox.my.id</code>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    bot.sendMessage(chatId, `✅ <b>T-Mail URL reset to default</b>\n🌐 URL: <code>https://mail.zyvenox.my.id</code>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
                 } else {
                     if (!finalUrl.startsWith('http')) finalUrl = 'https://' + finalUrl;
                     finalUrl = finalUrl.replace(/\/$/, '');
                     db.saveUser(chatId, { tmailBaseUrl: finalUrl });
-                    bot.sendMessage(chatId, `✅ <b>T-Mail URL tersimpan</b>\n🌐 URL: <code>${finalUrl}</code>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    bot.sendMessage(chatId, `✅ <b>T-Mail URL saved</b>\n🌐 URL: <code>${finalUrl}</code>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
                 }
+                return;
+            }
+
+            if (data === 'edit_tmail_key') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                const key = await askTelegramUser(chatId, `🔑 Enter your <b>T-Mail API Key</b>:\n<i>Send "-" to remove</i>`);
+                if (!key) return;
+                if (key.trim() === '-') {
+                    db.saveUser(chatId, { tmailApiKey: null });
+                    bot.sendMessage(chatId, `✅ <b>T-Mail API Key removed</b>.`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                } else {
+                    db.saveUser(chatId, { tmailApiKey: key.trim() });
+                    bot.sendMessage(chatId, `✅ <b>T-Mail API Key saved</b>.`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                }
+                return;
+            }
+
+            if (data === 'edit_luckmail_key') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                let isValid = false;
+                while (!isValid) {
+                    const key = await askTelegramUser(chatId, `🍀 Enter your <b>LuckMail API Key</b>:\n<i>Send "-" to remove</i>`);
+                    if (!key) return;
+                    if (key.trim() === '-') {
+                        db.saveUser(chatId, { luckMailApiKey: null });
+                        bot.sendMessage(chatId, `✅ <b>LuckMail API Key removed</b>.`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                        isValid = true;
+                    } else if (!key.trim().startsWith('luck_')) {
+                        bot.sendMessage(chatId, `❌ Invalid LuckMail key format. It usually starts with 'luck_'. Try again.`);
+                    } else {
+                        db.saveUser(chatId, { luckMailApiKey: key.trim() });
+                        bot.sendMessage(chatId, `✅ <b>LuckMail API Key saved</b>.`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                        isValid = true;
+                    }
+                }
+                return;
+            }
+
+            if (data === 'edit_luckmail_domains') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                const doms = await askTelegramUser(chatId, `🌐 Enter your preferred <b>LuckMail Domains</b> (comma separated):\n<i>Example: outlook.com, outlook.jp</i>`);
+                if (!doms) return;
+                const clean = doms.split(',').map(d => d.trim().toLowerCase()).filter(Boolean).join(', ');
+                db.saveUser(chatId, { luckMailDomains: clean });
+                bot.sendMessage(chatId, `✅ <b>LuckMail Domains saved:</b>\n<code>${clean}</code>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
                 return;
             }
 
@@ -545,7 +743,7 @@ function initTelegram() {
                 bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
 
                 if (workerPool.isUserActive(chatId)) {
-                    bot.sendMessage(chatId, "❌ Proses Anda masih berjalan. Hanya 1 slot per user.");
+                    bot.sendMessage(chatId, "❌ A task is already running. Only 1 slot per user.");
                     return;
                 }
 
@@ -554,17 +752,17 @@ function initTelegram() {
                 if (uData.passwordMode === 'static') {
                     let isValid = false;
                     while (!isValid) {
-                        staticPass = await askTelegramUser(chatId, `🔑 Masukkan <b>Password</b> untuk akun <code>${email}</code>:\n<i>(min. 12 karakter, huruf besar+kecil+angka)</i>`);
+                        staticPass = await askTelegramUser(chatId, `🔑 Enter <b>Password</b> for account <code>${email}</code>:\n<i>(min. 12 chars, uppercase + lowercase + numbers)</i>`);
                         if (!staticPass) return;
                         if (!isValidPassword(staticPass)) {
-                            await bot.sendMessage(chatId, "❌ <b>Password tidak memenuhi syarat.</b>\nMin. 12 karakter, huruf besar (A-Z), huruf kecil (a-z), angka (0-9).", { parse_mode: 'HTML' });
+                            await bot.sendMessage(chatId, "❌ <b>Password does not meet requirements.</b>\nMin. 12 chars, uppercase (A-Z), lowercase (a-z), numbers (0-9).", { parse_mode: 'HTML' });
                         } else {
                             isValid = true;
                         }
                     }
                 }
                 const pos = workerPool.enqueueTask({ userId: chatId, chatId, email, mode: 'retry_autopay', staticPassword: staticPass, mailProvider: 'manual' });
-                updateStatusFor(chatId, `📥 <b>Retry Pay Ditambahkan</b>\n📧 Email: <code>${email}</code>\n📊 Urutan: ${pos}\n<i>Menunggu giliran pemrosesan...</i>`, { email, mode: 'retry_autopay' }, true);
+                updateStatusFor(chatId, `📥 <b>Retry Pay Queued</b>\n📧 Email: <code>${email}</code>\n📊 Position: ${pos}\n<i>Waiting to be processed...</i>`, { email, mode: 'retry_autopay' }, true);
                 return;
             }
 
@@ -573,17 +771,17 @@ function initTelegram() {
                 bot.answerCallbackQuery(query.id).catch(() => {});
                 bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
                 bot.sendMessage(chatId,
-                    `📋 <b>Format Laporan Akun</b>\n━━━━━━━━━━━━━━━━━━\n` +
-                    `Pilih format file TXT yang akan dikirim bot:\n\n` +
-                    `🔑 <b>Email + Token</b> — <code>email ---- pass ---- type ---- token</code> (Lengkap)\n` +
-                    `📧 <b>Email:Password</b> — <code>email:password</code> (Hanya login)`,
+                    `📋 <b>Account Report Format</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `Choose the TXT file format the bot will send:\n\n` +
+                    `🔑 <b>Email + Token</b> — <code>email ---- pass ---- type ---- token</code> (Full)\n` +
+                    `📧 <b>Email:Password</b> — <code>email:password</code> (Login only)`,
                     {
                         parse_mode: 'HTML',
                         reply_markup: {
                             inline_keyboard: [
                                 [{ text: "🔑 Email + Token (Default)", callback_data: "set_format_tokens" }],
                                 [{ text: "📧 Email:Password Only", callback_data: "set_format_email_pw" }],
-                                [{ text: "❌ Batal", callback_data: "show_main_menu" }]
+                                [{ text: "❌ Cancel", callback_data: "show_main_menu" }]
                             ]
                         }
                     }
@@ -595,7 +793,7 @@ function initTelegram() {
                 bot.answerCallbackQuery(query.id).catch(() => {});
                 bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
                 db.saveUser(chatId, { reportFormat: 'with_tokens' });
-                bot.sendMessage(chatId, "✅ <b>Format Laporan: Email + Token</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                bot.sendMessage(chatId, "✅ <b>Report Format: Email + Token</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
                 return;
             }
 
@@ -603,7 +801,7 @@ function initTelegram() {
                 bot.answerCallbackQuery(query.id).catch(() => {});
                 bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
                 db.saveUser(chatId, { reportFormat: 'email_pw' });
-                bot.sendMessage(chatId, "✅ <b>Format Laporan: Email:Password</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                bot.sendMessage(chatId, "✅ <b>Report Format: Email:Password</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
                 return;
             }
 
@@ -616,27 +814,35 @@ function initTelegram() {
 }
 
 function sendSettingsMenu(chatId, userData) {
-    const modeLabel = userData.passwordMode === 'random' ? '🔄 Otomatis (Random)'
+    const modeLabel = userData.passwordMode === 'random' ? '🔄 Auto (Random)'
                     : userData.passwordMode === 'static' ? '🔑 Manual (Static)'
-                    : '⚠️ Belum diset';
+                    : '⚠️ Not set';
     const formatLabel = userData.reportFormat === 'email_pw' ? '📧 Email:Password'
                       : '🔑 Email + Token (Default)';
     const tmailUrl = userData.tmailBaseUrl || 'https://mail.zyvenox.my.id (default)';
-    const text = `⚙️ <b>Edit Data Saya</b>\n\n` +
-                 `🔑 <b>Mode Password:</b> <code>${modeLabel}</code>\n` +
-                 `<i>Password dibuat ${userData.passwordMode === 'random' ? 'otomatis setiap proses' : userData.passwordMode === 'static' ? 'dari input Anda setiap proses' : '— silakan set dulu'}</i>\n\n` +
-                 `📋 <b>Format Laporan:</b> <code>${formatLabel}</code>\n\n` +
-                 `🌐 <b>T-Mail URL:</b> <code>${tmailUrl}</code>\n\n` +
-                 `Silakan pilih apa yang ingin diubah:`;
+    const tmailKey = userData.tmailApiKey ? '✅ Set' : '⚠️ Not set';
+    const luckKey = userData.luckMailApiKey ? '✅ Set' : '⚠️ Not set';
+    const luckDomains = userData.luckMailDomains || 'outlook.com, outlook.jp';
+
+    const text = `⚙️ <b>MY SETTINGS</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                 `🔑 <b>Password Mode    :</b> <code>${modeLabel}</code>\n` +
+                 `📋 <b>Report Format    :</b> <code>${formatLabel}</code>\n\n` +
+                 `🍀 <b>LuckMail Key     :</b> <code>${luckKey}</code>\n` +
+                 `🌐 <b>LuckMail Domains :</b> <code>${luckDomains}</code>\n\n` +
+                 `📬 <b>T-Mail Base URL  :</b> <code>${tmailUrl}</code>\n` +
+                 `🔑 <b>T-Mail Key       :</b> <code>${tmailKey}</code>\n\n` +
+                 `<i>Select an option below to change:</i>`;
 
     bot.sendMessage(chatId, text, {
         parse_mode: 'HTML',
         reply_markup: {
             inline_keyboard: [
-                [{ text: "🔑 Ganti Mode Password", callback_data: "edit_password" }],
-                [{ text: "📋 Ganti Format Laporan", callback_data: "edit_report_format" }],
-                [{ text: "🌐 Ganti T-Mail URL", callback_data: "edit_tmail_url" }],
-                [{ text: "❌ Tutup", callback_data: "show_main_menu" }]
+                [{ text: "🔑 Password Mode", callback_data: "edit_password" }, { text: "📋 Report Format", callback_data: "edit_report_format" }],
+                [{ text: "🍀 LuckMail API Key", callback_data: "edit_luckmail_key" }],
+                [{ text: "🌐 LuckMail Domains", callback_data: "edit_luckmail_domains" }],
+                [{ text: "📬 T-Mail Base URL", callback_data: "edit_tmail_url" }],
+                [{ text: "🔑 T-Mail API Key", callback_data: "edit_tmail_key" }],
+                [{ text: "❌ Close", callback_data: "show_main_menu" }]
             ]
         }
     });
@@ -652,10 +858,10 @@ async function askTelegramUser(chatId, question, logTag = "") {
 
         const state = getUserState(chatId);
 
-        bot.sendMessage(chatId, `<b>INPUT DIBUTUHKAN</b>\n${logTag}${question}\n\n<i>(Balas pesan ini untuk merespon, atau klik batal jika macet)</i>`, {
+        bot.sendMessage(chatId, `<b>INPUT REQUIRED</b>\n${logTag}${question}\n\n<i>(Reply to this message to respond, or click Cancel if stuck)</i>`, {
             parse_mode: "HTML",
             reply_markup: {
-                inline_keyboard: [[{ text: "🛑 Batalkan Sesi", callback_data: "cancel_process" }]]
+                inline_keyboard: [[{ text: "🛑 Cancel Session", callback_data: "cancel_process" }]]
             }
         }).then(sent => {
             state.lastPromptMessageId = sent.message_id;
@@ -696,7 +902,7 @@ async function sendAccountJsonFile(chatId, results) {
                     email: acc.email,
                     password: acc.password || 'N/A',
                     accountType: acc.accountType || 'Plus',
-                    mailToken: acc.mailToken || 'token_tidak_tersedia'
+                    mailToken: acc.mailToken || 'not_available'
                 };
                 plusCount++;
             }
@@ -727,8 +933,8 @@ async function sendAccountJsonFile(chatId, results) {
 
         const isBatch = results.length > 1;
         const caption = isBatch
-            ? `📦 <b>BATCH REPORT</b>\n${plusCount} akun berhasil PLUS (dari ${results.length} proses). Berikut rekapannya:`
-            : `📄 <b>DATA AKUN</b>\nProses selesai! Berikut data akun Anda:`;
+            ? `📦 <b>BATCH REPORT</b>\n${plusCount} Plus accounts created (from ${results.length} tasks).`
+            : `📄 <b>ACCOUNT DATA</b>\nTask complete! Here is your account data:`;
 
         await bot.sendMessage(chatId, caption, { parse_mode: 'HTML' });
         await bot.sendDocument(chatId, txtFilePath);
@@ -737,7 +943,7 @@ async function sendAccountJsonFile(chatId, results) {
         logger.info(`[Bot] File TXT akun berhasil dikirim ke ${chatId} (${plusCount} akun Plus) → ${txtFileName}`);
     } catch (err) {
         logger.error('[Bot] Gagal kirim file akun: ' + err.message);
-        bot.sendMessage(chatId, '⚠️ Gagal mengirim file laporan.').catch(() => {});
+        bot.sendMessage(chatId, '⚠️ Failed to send report file.').catch(() => {});
     }
 }
 
@@ -761,13 +967,27 @@ function handleTaskResult(chatId, result) {
             // Persist batch progress ke disk agar tidak hilang saat crash
             saveBatchProgress(chatId, state.batchResults.filter(r => r && r.accountType === 'Plus'));
         } else {
-            // Task gagal jadi Plus → enqueue 1 task pengganti jika target belum tercapai
-            if (state.batchPlusCount < state.batchTarget) {
-                logger.warn(`[Bot] Task gagal (bukan Plus), mengantrikan pengganti untuk ${chatId}...`);
+            // Task gagal jadi Plus → enqueue replacement ONLY within retry cap
+            // maxReplacements = batchTarget × 1 (multiplier 2: original + 1x replacement)
+            const maxReplacements = state.batchTarget; // 100 target → max 100 replacements → 200 total
+            const replacementsSoFar = state.batchTotalDispatched - state.batchTarget;
+
+            if (state.batchPlusCount < state.batchTarget && replacementsSoFar < maxReplacements) {
                 state.batchTotalDispatched++;
-                // Preserve mailProvider dari task sebelumnya
+                const replacementsLeft = maxReplacements - replacementsSoFar - 1;
+                logger.warn(`[Bot] Task failed, re-queuing replacement for ${chatId} (${replacementsSoFar + 1}/${maxReplacements} retries used, ${replacementsLeft} left)`);
                 const mailProvider = result.mailProvider || 'luckmail';
                 workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay', mailProvider });
+            } else if (state.batchPlusCount < state.batchTarget && replacementsSoFar >= maxReplacements && state.isBatchMode) {
+                // Hit the retry cap — force finish once (guard with isBatchMode flag)
+                logger.warn(`[Bot] Batch retry cap reached. Total dispatched: ${state.batchTotalDispatched}. Forcing finish with ${state.batchPlusCount} Plus accounts.`);
+                state.isBatchMode = false; // prevent double-fire
+                const failMsg = `⚠️ <b>BATCH STOPPED</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `✅ Plus accounts : <b>${state.batchPlusCount} / ${state.batchTarget}</b>\n` +
+                    `❌ Retry limit   : <b>${maxReplacements} replacements used</b>\n\n` +
+                    `<i>Could not reach the target. Report contains successful accounts only.</i>`;
+                if (bot) bot.sendMessage(chatId, failMsg, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                setTimeout(() => checkAndSendBatchReport(chatId, true), 500);
             }
         }
 
@@ -775,14 +995,14 @@ function handleTaskResult(chatId, result) {
         const failCount = state.batchTotalDispatched - state.batchPlusCount - (state.batchTarget - state.batchPlusCount);
         const batchText = `📊 <b>BATCH MODE</b>\n` +
                           `━━━━━━━━━━━━━━━━━━\n` +
-                          `✅ Akun Plus terbuat: <b>${state.batchPlusCount} / ${state.batchTarget}</b>\n` +
-                          `📦 Total proses: <b>${state.batchResults.length}</b>\n` +
-                          `<i>Sedang berjalan...</i>`;
+                          `✅ Plus accounts created: <b>${state.batchPlusCount} / ${state.batchTarget}</b>\n` +
+                          `📦 Total tasks: <b>${state.batchResults.length}</b>\n` +
+                          `<i>Running...</i>`;
 
         // Kirim langsung tanpa melalui filter batch di updateStatusFor
         if (bot) {
             const batchState = getUserState(chatId);
-            const reply_markup = { inline_keyboard: [[{ text: "🛑 Batalkan Batch", callback_data: "cancel_process" }]] };
+            const reply_markup = { inline_keyboard: [[{ text: "🛑 Cancel Batch", callback_data: "cancel_process" }]] };
             if (batchState.lastStatusMessageId) {
                 bot.editMessageText(batchText, {
                     chat_id: chatId,
@@ -813,12 +1033,15 @@ function handleTaskResult(chatId, result) {
  * Fungsi mandiri untuk mengirim laporan batch jika target tercapai.
  * Dipanggil tiap kali ada update status (batch mode).
  */
-async function checkAndSendBatchReport(chatId) {
+async function checkAndSendBatchReport(chatId, forceFinish = false) {
     const state = getUserState(chatId);
     
-    // Guard: Pastikan dalam mode batch dan target PLUS sudah tercapai
-    if (state.isBatchMode && state.batchPlusCount >= state.batchTarget && state.batchTarget > 0) {
-        // Ambil data hasil dan segera reset state agar tidak kepanggil dobel
+    // Guard: target reached OR forced finish (retry cap hit)
+    const targetReached = state.isBatchMode && state.batchPlusCount >= state.batchTarget && state.batchTarget > 0;
+    if (!targetReached && !forceFinish) return;
+    if (!state.isBatchMode) return;
+
+    // Ambil data hasil dan segera reset state agar tidak kepanggil dobel
         const results = [...state.batchResults];
         const successCount = state.batchPlusCount;
         const totalDispatched = state.batchTotalDispatched;
@@ -834,16 +1057,15 @@ async function checkAndSendBatchReport(chatId) {
         // Kirim ringkasan batch
         const summaryMsg = `📊 <b>BATCH COMPLETED</b>\n` +
                          `━━━━━━━━━━━━━━━━━━\n` +
-                         `✅ Plus     : <b>${successCount} akun</b>\n` +
-                         `❌ Gagal    : <b>${failCount} percobaan</b>\n` +
-                         `📦 Total    : <b>${totalDispatched} task dijalankan</b>\n\n` +
-                         `<i>Menyiapkan laporan ${successCount} akun Plus...</i>`;
+                         `✅ Plus      : <b>${successCount} accounts</b>\n` +
+                         `❌ Failed    : <b>${failCount} attempts</b>\n` +
+                         `📦 Total     : <b>${totalDispatched} tasks run</b>\n\n` +
+                         `<i>Preparing report for ${successCount} Plus accounts...</i>`;
         
         bot.sendMessage(chatId, summaryMsg, { parse_mode: 'HTML' });
 
         // Beri jeda sedikit agar dashboard status FINISHED terkirim duluan
         setTimeout(() => sendAccountJsonFile(chatId, results), 2500);
-    }
 }
 
 // Global legacy fallback mapping
@@ -916,18 +1138,18 @@ async function processUserMessageQueue(chatId) {
                          `━━━━━━━━━━━━━━━━━━\n\n`;
                 
                 if (isWorkerRunning || isQueued) {
-                    reply_markup.inline_keyboard = [[{ text: "🛑 Batalkan Sesi Ini", callback_data: "cancel_process" }]];
+                    reply_markup.inline_keyboard = [[{ text: "🛑 Cancel This Session", callback_data: "cancel_process" }]];
                 } else if (mode === 'failed_autopay') {
                     reply_markup.inline_keyboard = [
                         [{ text: "💳 Retry Pay", callback_data: `mode_retrypay_${email}` }],
-                        [{ text: "📋 Tampilkan Menu Utama", callback_data: "show_main_menu" }]
+                        [{ text: "📋 Show Main Menu", callback_data: "show_main_menu" }]
                     ];
                 }
             } else {
                 header = `🖥️ <b>SYSTEM DASHBOARD (IDLE)</b>\n` +
                          `━━━━━━━━━━━━━━━━━━\n` +
-                         `<i>Siap menerima tugas baru...</i>\n\n`;
-                reply_markup.inline_keyboard = [[{ text: "📋 Tampilkan Menu Utama", callback_data: "show_main_menu" }]];
+                         `<i>Ready to accept new tasks...</i>\n\n`;
+                reply_markup.inline_keyboard = [[{ text: "📋 Show Main Menu", callback_data: "show_main_menu" }]];
             }
             
             let engineStatus = "";

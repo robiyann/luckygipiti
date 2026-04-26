@@ -41,9 +41,10 @@ async function getDomains(baseUrl) {
 /**
  * Generate email random dari T-MAIL API.
  * @param {string} [baseUrl] - Override base URL (dari user settings)
+ * @param {string} [apiKey] - API key T-Mail user
  * @returns {Promise<{email: string, token: string}>}
  */
-async function generateEmail(baseUrl) {
+async function generateEmail(baseUrl, apiKey) {
     try {
         const domains = await getDomains(baseUrl);
         if (!domains || domains.length === 0) {
@@ -53,13 +54,15 @@ async function generateEmail(baseUrl) {
         logger.info(`[T-Mail] Generating random email dengan domain: ${domain}`);
 
         const apiClient = createApiClient(baseUrl);
-        const response = await apiClient.post('/api/mailboxes/generate', { domain });
+        const headers = apiKey ? { 'X-API-Key': apiKey } : {};
+        const response = await apiClient.post('/api/mailboxes/generate', { domain }, { headers });
 
         if (response.data && response.data.address) {
             const email = response.data.address;
-            db.saveOrder(`tmail_${email}`, email, 'generated');
-            logger.info(`[T-Mail] Email berhasil digenerate: ${email}`);
-            return { email, token: email };
+            const token = response.data.token || email; // Fallback kalau API belum support token response
+            db.saveOrder(`tmail_${token}`, email, 'generated');
+            logger.info(`[T-Mail] Email digenerate: ${email} (Token: ${token})`);
+            return { email, token };
         }
         throw new Error(response.data ? JSON.stringify(response.data) : 'Unknown T-Mail API error');
     } catch (error) {
@@ -69,21 +72,21 @@ async function generateEmail(baseUrl) {
 }
 
 /**
- * Polling OTP dari T-MAIL API menggunakan endpoint /otp?service=openai.
+ * Polling OTP dari T-MAIL API menggunakan endpoint /token/:token/otp?service=openai.
  * Poll setiap 2 detik, maksimal 10 kali (20 detik).
  * Menggunakan OTP cache agar tidak mengembalikan kode lama.
  *
- * @param {string} _token - Token (tidak digunakan, email = token)
+ * @param {string} token - Token untuk akses mail
  * @param {string} email - Alamat email untuk polling OTP
  * @param {string} [baseUrl] - Override base URL (dari user settings)
  * @returns {Promise<string|null>}
  */
-async function fetchVerificationCode(_token, email, baseUrl) {
+async function fetchVerificationCode(token, email, baseUrl) {
     const maxRetries = 10;
     const delayMs = 2000;
     const lastOtp = db.getOtpCache(email);
 
-    logger.info(`[T-Mail] Memulai polling OTP untuk ${email}...`);
+    logger.info(`[T-Mail] Memulai polling OTP untuk ${email} via token...`);
     if (lastOtp) logger.debug(`[T-Mail] OTP sebelumnya: ${lastOtp}, akan di-ignore.`);
 
     const apiClient = createApiClient(baseUrl);
@@ -91,7 +94,9 @@ async function fetchVerificationCode(_token, email, baseUrl) {
     for (let i = 0; i < maxRetries; i++) {
         try {
             await new Promise(resolve => setTimeout(resolve, delayMs));
-            const response = await apiClient.get(`/api/mailboxes/${encodeURIComponent(email)}/otp?service=openai`);
+            // Sekarang menggunakan token endpoint
+            const urlPath = `/api/mailboxes/token/${encodeURIComponent(token)}/otp?service=openai`;
+            const response = await apiClient.get(urlPath);
             if (response.data && response.data.otp) {
                 const extractedOtp = String(response.data.otp);
                 if (extractedOtp === lastOtp) {

@@ -1,11 +1,34 @@
 const logger = require('./utils/logger');
 
-const MAX_SLOTS = parseInt(process.env.MAX_THREADS) || 5;
+const MAX_SLOTS = parseInt(process.env.MAX_THREADS) || 50;
+const DEFAULT_USER_THREADS = parseInt(process.env.DEFAULT_USER_THREADS) || 5;
 
 // Global queue across all users
 let globalQueue = [];
 // Map of taskId -> active slot info
 let activeSlots = new Map();
+
+// Cancellation tokens: userId -> { cancelled: boolean }
+const cancellationTokens = new Map();
+
+function createTokenForUser(userId) {
+    const token = { cancelled: false };
+    cancellationTokens.set(userId.toString(), token);
+    return token;
+}
+
+function cancelTokenForUser(userId) {
+    const token = cancellationTokens.get(userId.toString());
+    if (token) token.cancelled = true;
+}
+
+function getTokenForUser(userId) {
+    return cancellationTokens.get(userId.toString()) || { cancelled: false };
+}
+
+function clearTokenForUser(userId) {
+    cancellationTokens.delete(userId.toString());
+}
 
 // We need a way to track callback for actual task execution
 let processTaskCallback = null;
@@ -30,6 +53,31 @@ function isUserActive(userId) {
         if (slot.userId === userId) return true;
     }
     return false;
+}
+
+function getUserActiveCount(userId) {
+    let count = 0;
+    const userIdStr = userId.toString();
+    for (const slot of activeSlots.values()) {
+        if (slot.userId === userIdStr) count++;
+    }
+    return count;
+}
+
+function getUserMaxThreads(userId) {
+    const db = require('./db');
+    const user = db.getUser(userId);
+    return (user && user.maxThreads) ? parseInt(user.maxThreads) : DEFAULT_USER_THREADS;
+}
+
+// Round-robin: pick first task whose user hasn't hit their thread cap
+function getNextFairTaskIndex() {
+    const idx = globalQueue.findIndex(t => {
+        const userMax = getUserMaxThreads(t.userId);
+        const userActive = getUserActiveCount(t.userId);
+        return userActive < userMax;
+    });
+    return idx !== -1 ? idx : 0; // fallback boolean/fifo
 }
 
 // Cek apakah user masih punya task di queue (termasuk yang sedang jalan)
@@ -71,12 +119,10 @@ async function tryStart() {
         return;
     }
 
-    // Ambil task pertama di antrean (FIFO), siapapun user-nya (Full Concurrency ON)
-    // Sekarang 1 user bisa menjalankan banyak task berbarengan sebanyak jumlah slot MAX_SLOTS
-    const taskIndex = 0;
+    const taskIndex = getNextFairTaskIndex();
 
     if (taskIndex === -1) {
-        // Semua task di antrian milik user yang sedang aktif running task lain
+        // All queued tasks belong to users already running — skip for now
         return;
     }
 
@@ -84,6 +130,9 @@ async function tryStart() {
     const task = globalQueue.splice(taskIndex, 1)[0];
     const userIdStr = task.userId.toString();
     const taskId = task.taskId;
+
+    // Create a fresh cancellation token for this task
+    const cancelToken = createTokenForUser(userIdStr);
 
     // Mark slot as active (key = taskId, value simpan userId untuk tracking)
     activeSlots.set(taskId, {
@@ -98,6 +147,8 @@ async function tryStart() {
     logger.info(`[Pool] Menjalankan task ${taskId} untuk User ${userIdStr} - Mode: ${task.mode}`);
 
     if (processTaskCallback) {
+        // Inject cancel token into task object
+        task.cancelToken = cancelToken;
         // Run asynchronously, catch errors, and ensure releaseSlot is called
         processTaskCallback(task).then(result => {
              // Teruskan result ke telegramHandler untuk batch/single reporting
@@ -110,6 +161,7 @@ async function tryStart() {
             if (handleTaskResult) handleTaskResult(userIdStr, { success: false, email: task.email || '', error: err.message });
         }).finally(() => {
             logger.info(`[Pool] Selesai/Release slot untuk task ${taskId} (User ${userIdStr})`);
+            clearTokenForUser(userIdStr);
             releaseSlot(taskId);
         });
     } else {
@@ -141,6 +193,8 @@ module.exports = {
     enqueueTask,
     cancelUserQueue,
     cancelUserActiveToken,
+    cancelTokenForUser,
+    getTokenForUser,
     getActiveStatus,
     releaseSlot
 };
