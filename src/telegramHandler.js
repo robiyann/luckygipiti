@@ -791,13 +791,13 @@ function initTelegram() {
                     `📋 <b>Account Report Format</b>\n━━━━━━━━━━━━━━━━━━\n` +
                     `Choose the TXT file format the bot will send:\n\n` +
                     `🔑 <b>Email + Token</b> — <code>email ---- pass ---- type ---- token</code> (Full)\n` +
-                    `📧 <b>Email:Password</b> — <code>email:password</code> (Login only)`,
+                    `📧 <b>Email:Password:Token</b> — <code>email:password:token</code>`,
                     {
                         parse_mode: 'HTML',
                         reply_markup: {
                             inline_keyboard: [
                                 [{ text: "🔑 Email + Token (Default)", callback_data: "set_format_tokens" }],
-                                [{ text: "📧 Email:Password Only", callback_data: "set_format_email_pw" }],
+                                [{ text: "📧 Email:Password:Token", callback_data: "set_format_email_pw" }],
                                 [{ text: "❌ Cancel", callback_data: "show_main_menu" }]
                             ]
                         }
@@ -818,7 +818,7 @@ function initTelegram() {
                 bot.answerCallbackQuery(query.id).catch(() => {});
                 bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
                 db.saveUser(chatId, { reportFormat: 'email_pw' });
-                bot.sendMessage(chatId, "✅ <b>Report Format: Email:Password</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                bot.sendMessage(chatId, "✅ <b>Report Format: Email:Password:Token</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
                 return;
             }
 
@@ -834,7 +834,7 @@ function sendSettingsMenu(chatId, userData) {
     const modeLabel = userData.passwordMode === 'random' ? '🔄 Auto (Random)'
                     : userData.passwordMode === 'static' ? '🔑 Manual (Static)'
                     : '⚠️ Not set';
-    const formatLabel = userData.reportFormat === 'email_pw' ? '📧 Email:Password'
+    const formatLabel = userData.reportFormat === 'email_pw' ? '📧 Email:Password:Token'
                       : '🔑 Email + Token (Default)';
     const tmailUrl = userData.tmailBaseUrl || 'https://mail.zyvenox.my.id (default)';
     const tmailKey = userData.tmailApiKey ? '✅ Set' : '⚠️ Not set';
@@ -943,7 +943,7 @@ async function sendAccountJsonFile(chatId, results) {
         const txtContent = Object.values(formattedData)
             .map((acc, i) => {
                 if (reportFormat === 'email_pw') {
-                    return `${acc.email}:${acc.password}`;
+                    return `${acc.email}:${acc.password}:${acc.mailToken}`;
                 } else {
                     return `${acc.email} ---- ${acc.password} ---- ${acc.accountType} ---- ${acc.mailToken}`;
                 }
