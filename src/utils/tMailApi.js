@@ -39,29 +39,26 @@ async function getDomains(baseUrl) {
 }
 
 /**
- * Generate email random dari T-MAIL API.
+ * Generate email random dari T-MAIL API menggunakan round-robin domain otomatis.
+ * Server yang menentukan domain berikutnya secara adil.
  * @param {string} [baseUrl] - Override base URL (dari user settings)
  * @param {string} [apiKey] - API key T-Mail user
  * @returns {Promise<{email: string, token: string}>}
  */
 async function generateEmail(baseUrl, apiKey) {
     try {
-        const domains = await getDomains(baseUrl);
-        if (!domains || domains.length === 0) {
-            throw new Error('Tidak ada domain T-Mail yang tersedia');
-        }
-        const domain = domains[Math.floor(Math.random() * domains.length)];
-        logger.info(`[T-Mail] Generating random email dengan domain: ${domain}`);
-
         const apiClient = createApiClient(baseUrl);
         const headers = apiKey ? { 'X-API-Key': apiKey } : {};
-        const response = await apiClient.post('/api/mailboxes/generate', { domain }, { headers });
+
+        // Gunakan endpoint /generate/auto — server pilih domain secara round-robin
+        const response = await apiClient.post('/api/mailboxes/generate/auto', {}, { headers });
 
         if (response.data && response.data.address) {
             const email = response.data.address;
-            const token = response.data.token || email; // Fallback kalau API belum support token response
+            const token = response.data.token || email;
+            const domain = response.data.domain || email.split('@')[1];
             db.saveOrder(`tmail_${token}`, email, 'generated');
-            logger.info(`[T-Mail] Email digenerate: ${email} (Token: ${token})`);
+            logger.info(`[T-Mail] Email digenerate: ${email} | Domain: ${domain} | Token: ${token}`);
             return { email, token };
         }
         throw new Error(response.data ? JSON.stringify(response.data) : 'Unknown T-Mail API error');
