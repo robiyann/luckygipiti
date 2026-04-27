@@ -207,10 +207,12 @@ async function handleAccountTask(task) {
                 telegramHandler.updateStatusFor(chatId, `💳 <b>Retrying Payment...</b>\n<i>Bypassing login via cached token...</i>`);
                 const aRes = await autopay.runAutopay();
                 
-                // Pool cleanup: hanya release karena unlink sudah diawait 100% di dalam runAutopay()
+                // Pool cleanup dihapus karena reset-link dari HP yang akan me-release slot (menghindari race condition).
+                /*
                 if (activeSlot) {
                     await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                 }
+                */
 
                 await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider);
                 // Ekstrak refresh token dari cookie jar jika ada
@@ -286,10 +288,12 @@ async function handleAccountTask(task) {
                     telegramHandler.updateStatusFor(chatId, `💳 <b>Initiating Payment...</b>\n<i>Processing GoPay transaction...</i>`);
                     const aRes = await autopay.runAutopay();
 
-                    // Pool cleanup: hanya release karena unlink sudah diawait 100% di dalam runAutopay()
+                    // Pool cleanup dihapus karena reset-link dari HP yang akan me-release slot (menghindari race condition).
+                    /*
                     if (activeSlot) {
                         await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                     }
+                    */
 
                     await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider);
                     // Ekstrak refresh token dari cookie jar jika ada
