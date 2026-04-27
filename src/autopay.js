@@ -1586,46 +1586,15 @@ class ChatGPTAutopay {
             return b.data;
         }
 
-        // AUTO-RETRY LOGIC: Try to auto-reset link via MacroDroid
-        // _retryLinkCount tracks how many times we've retried AFTER reset.
-        // Webhook is only triggered ONCE (on first conflict). Subsequent retries
-        // just wait longer, giving Midtrans backend time to sync with GoPay unlink.
-        // just wait longer, giving Midtrans backend time to sync with GoPay unlink.
-        const MAX_LINK_RETRIES = 3;
-        const RETRY_DELAYS = [3000, 5000, 5000]; // ms per attempt
-
-        if (typeof this._retryLinkCount === 'undefined') {
-            this._retryLinkCount = 0;
-        }
-
-        if (this._retryLinkCount === 0) {
-            // First conflict: trigger webhook ke HP untuk unlink GoPay
-            // Tidak perlu waitForGopayReset — server pool otomatis set slot ke available
-            // begitu HP mengirim status "reset done" via /statusgpay
-            const otpServerUrl = process.env.OTP_SERVER_URL;
-            if (otpServerUrl) {
-                logger.warn(this.tag + "GoPay Linked Conflict! Trigger reset ke HP...");
-                try {
-                    await triggerMacrodroidWebhook(otpServerUrl, this.webhookAction);
-                    logger.info(this.tag + "Webhook reset terkirim. Menunggu 5s sebelum retry...");
-                    await new Promise(r => setTimeout(r, 5000)); // beri waktu HP mulai proses unlink
-                } catch (err) {
-                    logger.error(this.tag + "Gagal trigger reset: " + err.message);
-                }
-            }
-        }
-
-        if (this._retryLinkCount < MAX_LINK_RETRIES) {
-            const delay = RETRY_DELAYS[this._retryLinkCount] || 12000;
-            this._retryLinkCount++;
-            logger.info(this.tag + `Reset: menunggu ${delay/1000}s lalu retry linking (${this._retryLinkCount}/${MAX_LINK_RETRIES})...`);
-            await sleep(delay);
-            return await this.linkGoPay(); // Recursive retry
-        }
-
+        // AUTO-RETRY LOGIC DIHAPUS.
+        // Berdasarkan arsitektur baru, jika terjadi konflik linked:
+        // Bot akan lempar error -> WorkerPool catch error -> panggil releaseGopaySlot -> 
+        // -> OTP Server (`/gopay/release`) akan otomatis kirim reset-link webhook ke HP
+        // -> HP dipaksa bersih, siap dipakai slot-claim berikutnya.
+        
         const d = new Error("GoPay sudah terhubung!");
-        d.hint = "Coba putuskan sambungan di: Gojek -> Profil -> Pengaturan -> Aplikasi Terhubung -> Midtrans/OpenAI";
-        d.noRetry = true;
+        d.hint = "Server akan otomatis me-reset slot ini. Coba pakai slot yang lain.";
+        d.noRetry = true; // Langsung gagal, ganti akun/slot.
         throw d;
       }
       throw new Error("GoPay linking failed: " + b.status + " " + c);
