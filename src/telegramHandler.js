@@ -12,6 +12,11 @@ const { isValidPassword } = require('./utils/passwordGenerator');
 const REPORTS_DIR = path.join(process.cwd(), 'reports');
 if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
 
+function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(String(email).toLowerCase());
+}
+
 // Batch progress file helpers — persist ke disk agar tidak hilang saat crash
 function getBatchProgressPath(chatId) {
     return path.join(REPORTS_DIR, `batch_progress_${chatId}.json`);
