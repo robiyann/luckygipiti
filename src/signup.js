@@ -19,7 +19,7 @@ class ChatGPTSignup {
     this.deviceId = uuidv4();
     this.sessionId = uuidv4();
     this.sentinelId = uuidv4();
-    this.tag = a.threadId ? "[36m[#" + a.threadId + "][0m " : "";
+    this.tag = a.threadId ? " \u001b[36m[#" + a.threadId + (this.email ? " | " + this.email : "") + "]\u001b[0m " : "";
     this.otpConfig = { provider: "manual" };
     
     // Sticky session proxy for DataImpulse

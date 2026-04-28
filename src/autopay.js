@@ -236,7 +236,7 @@ class ChatGPTAutopay {
     this.deviceId = a.deviceId || uuidv4();
     this.sessionId = uuidv4();
     this.stripeJsId = uuidv4();
-    this.tag = a.threadId ? "[36m[#" + a.threadId + "][0m " : "";
+    this.tag = a.threadId ? " \u001b[36m[#" + a.threadId + (this.email ? " | " + this.email : "") + "]\u001b[0m " : "";
     this.clientId = a.clientId || "app_X8zY6vW2pQ9tR3dE7nK1jL5gH";
     this.redirectUri =
       a.redirectUri || "https://chatgpt.com/api/auth/callback/openai";
