@@ -1596,6 +1596,7 @@ class ChatGPTAutopay {
         const d = new Error("GoPay sudah terhubung!");
         d.hint = "Server akan otomatis me-reset slot ini. Coba pakai slot yang lain.";
         d.noRetry = true; // Langsung gagal, ganti akun/slot.
+        d.linkedConflict = true; // Flag for index.js to force release
         throw d;
       }
       throw new Error("GoPay linking failed: " + b.status + " " + c);
