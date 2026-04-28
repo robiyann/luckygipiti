@@ -1999,12 +1999,6 @@ class ChatGPTAutopay {
           this._cycleTLS = this.sharedCycleTLS || (await initCycleTLS());
           this._oaiJar = new LoginCookieJar();
         }
-        // Validasi access token sebelum lanjut.
-        // Jika token sudah expired, lakukan login ulang untuk mendapatkan token baru.
-        if (!this.accessToken) {
-          logger.warn(this.tag + "Access token kosong, melakukan login ulang...");
-          await this.loginToChatGPT();
-        }
       }
       logger.info(this.tag + "Info harga...");
       await Promise.all([this.getPricingCountries(), this.getPricingConfig()]);
