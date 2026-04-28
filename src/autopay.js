@@ -1923,7 +1923,7 @@ class ChatGPTAutopay {
     return d;
   }
   async checkTransactionStatus() {
-    for (let a = 0x0; a < 0xc; a++) {
+    for (let a = 0x0; a < 0x5; a++) {
       const b = await this.midtransClient.get(
         MIDTRANS_API +
         "/snap/v1/transactions/" +
@@ -1940,20 +1940,20 @@ class ChatGPTAutopay {
       const c = b.data?.transaction_status;
       const d = b.data?.status_code;
       logger.debug(
-        this.tag + "Status: " + (c || "unknown") + " [" + (a + 0x1) + "/12]",
+        this.tag + "Status: " + (c || "unknown") + " [" + (a + 0x1) + "/5]",
       );
       if (c === "settlement" || c === "capture" || d === "200") {
         logger.success(this.tag + "Settlement ✓");
         return b.data;
       }
       if (c === "pending" || !c) {
-        await sleep(0x1388);
+        await sleep(0xBB8); // 3 detik (sebelumnya 5 detik)
         continue;
       }
       if (c === "deny" || c === "cancel" || c === "expire" || c === "failure") {
         throw new Error("Payment " + c);
       }
-      await sleep(0x1388);
+      await sleep(0xBB8); // 3 detik
     }
     throw new Error("Payment status check timeout");
   }

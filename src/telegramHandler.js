@@ -1006,8 +1006,6 @@ function handleTaskResult(chatId, result) {
                 const mailProvider = result.mailProvider || 'luckmail';
                 workerPool.enqueueTask({ userId: chatId, chatId, email: '', mode: 'auto_autopay', mailProvider });
             } else if (state.batchPlusCount < state.batchTarget && replacementsSoFar >= maxReplacements) {
-                // Hit the retry cap — do not force finish yet! Let the remaining running tasks finish naturally.
-                // Output a warning so we know the cap is reached.
                 logger.warn(`[Bot] Batch retry cap reached. No more replacements will be queued.`);
             }
         }
