@@ -1999,11 +1999,35 @@ class ChatGPTAutopay {
           this._cycleTLS = this.sharedCycleTLS || (await initCycleTLS());
           this._oaiJar = new LoginCookieJar();
         }
+        // Validasi access token sebelum lanjut.
+        // Jika token sudah expired, lakukan login ulang untuk mendapatkan token baru.
+        if (!this.accessToken) {
+          logger.warn(this.tag + "Access token kosong, melakukan login ulang...");
+          await this.loginToChatGPT();
+        }
       }
       logger.info(this.tag + "Info harga...");
       await Promise.all([this.getPricingCountries(), this.getPricingConfig()]);
       logger.info(this.tag + "Sesi checkout...");
-      await this.createCheckoutSession();
+      // Jika checkout gagal 401 (token expired), coba login ulang 1x
+      let checkoutErr = null;
+      for (let _ck = 0; _ck < 2; _ck++) {
+        try {
+          await this.createCheckoutSession();
+          checkoutErr = null;
+          break;
+        } catch (e) {
+          const errStr = e.message || '';
+          if (_ck === 0 && (errStr.includes('401') || errStr.toLowerCase().includes('unauthorized') || errStr.toLowerCase().includes('access token is missing'))) {
+            logger.warn(this.tag + "Checkout 401: token expired! Melakukan login ulang...");
+            await this.loginToChatGPT(); // Refresh token
+            checkoutErr = e;
+          } else {
+            throw e; // Bukan auth error, langsung lempar
+          }
+        }
+      }
+      if (checkoutErr) throw checkoutErr;
       logger.info(this.tag + "Inisiasi pembayaran...");
       const a = generateBillingAddress(this.name);
       const [, b] = await Promise.all([
