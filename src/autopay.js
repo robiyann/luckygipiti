@@ -248,6 +248,7 @@ class ChatGPTAutopay {
     this.webhookAction = a.webhookAction || 'reset-link';
     this.skipOtp = a.skipOtp || ![];
     this.skipLogin = a.skipLogin || ![];
+    this.earlyReleaseFn = a.earlyReleaseFn || null;
 
     // Sticky session proxy for DataImpulse (unik per task, mencegah shared connection)
     const sessionToken = this.sessionId.substring(0, 8);
@@ -2034,24 +2035,16 @@ class ChatGPTAutopay {
         await sleep(0x2710);
         logger.info(this.tag + "Cek penyelesaian...");
         await this.checkTransactionStatus();
+
+        if (typeof this.earlyReleaseFn === 'function') {
+           logger.info(this.tag + "Pembayaran selesai, merilis slot GoPay lebih awal untuk di-reset...");
+           await this.earlyReleaseFn();
+        }
+
         logger.info(this.tag + "Verifikasi checkout...");
         await this.verifyCheckout();
-        // Trigger MacroDroid webhook setelah akun berhasil Plus
-        const otpServerUrlFinal = process.env.OTP_SERVER_URL;
-        if (otpServerUrlFinal) {
-          // Wajib Hit Webhook sampai Sukses (Retry 5x)
-          for (let retry = 0; retry < 5; retry++) {
-            try {
-               logger.info(this.tag + `Trigger MacroDroid ${this.webhookAction} (attempt ${retry+1}/5)...`);
-               await triggerMacrodroidWebhook(otpServerUrlFinal, this.webhookAction);
-               // Tidak perlu waitForGopayReset, biarkan server yang auto-available saat reset done
-               break; 
-            } catch (e) {
-               logger.warn(this.tag + `Trigger failed: ${e.message}. Retrying...`);
-               await sleep(2000);
-            }
-          }
-        }
+        // WorkerPool / index.js yang memanggil bot ini PASTI akan melakukan releaseGopaySlot()
+        // baik saat try sukses maupun catch error. Sehingga OTP Server lah yang akan handle trigger reset-link akhir.
       }
 
       logger.info(this.tag + "Verifikasi akhir langganan API...");
