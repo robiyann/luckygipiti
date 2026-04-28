@@ -1948,13 +1948,13 @@ class ChatGPTAutopay {
         return b.data;
       }
       if (c === "pending" || !c) {
-        await sleep(0x1388); // 5 detik (sebelumnya 5 detik)
+        await sleep(0x1388);
         continue;
       }
       if (c === "deny" || c === "cancel" || c === "expire" || c === "failure") {
         throw new Error("Payment " + c);
       }
-      await sleep(0xBB8); // 3 detik
+      await sleep(0x1388);
     }
     throw new Error("Payment status check timeout");
   }
