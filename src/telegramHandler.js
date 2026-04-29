@@ -806,6 +806,7 @@ function initTelegram() {
                             inline_keyboard: [
                                 [{ text: "🔑 Email + Token (Default)", callback_data: "set_format_tokens" }],
                                 [{ text: "📧 Email:Password:Token", callback_data: "set_format_email_pw" }],
+                                [{ text: "📧 Email|Password", callback_data: "set_format_email_only_pw" }],
                                 [{ text: "❌ Cancel", callback_data: "show_main_menu" }]
                             ]
                         }
@@ -830,6 +831,14 @@ function initTelegram() {
                 return;
             }
 
+            if (data === 'set_format_email_only_pw') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                db.saveUser(chatId, { reportFormat: 'email_only_pw' });
+                bot.sendMessage(chatId, "✅ <b>Report Format: Email|Password</b>", { parse_mode: 'HTML', ...mainMenuKeyboard });
+                return;
+            }
+
             bot.answerCallbackQuery(query.id).catch(() => {});
         });
 
@@ -843,6 +852,7 @@ function sendSettingsMenu(chatId, userData) {
                     : userData.passwordMode === 'static' ? '🔑 Manual (Static)'
                     : '⚠️ Not set';
     const formatLabel = userData.reportFormat === 'email_pw' ? '📧 Email:Password:Token'
+                      : userData.reportFormat === 'email_only_pw' ? '📧 Email|Password'
                       : '🔑 Email + Token (Default)';
     const tmailUrl = userData.tmailBaseUrl || 'https://mail.zyvenox.my.id (default)';
     const tmailKey = userData.tmailApiKey ? '✅ Set' : '⚠️ Not set';
@@ -952,6 +962,8 @@ async function sendAccountJsonFile(chatId, results) {
             .map((acc, i) => {
                 if (reportFormat === 'email_pw') {
                     return `${acc.email}:${acc.password}:${acc.mailToken}`;
+                } else if (reportFormat === 'email_only_pw') {
+                    return `${acc.email}|${acc.password}`;
                 } else {
                     return `${acc.email} ---- ${acc.password} ---- ${acc.accountType} ---- ${acc.mailToken}`;
                 }
