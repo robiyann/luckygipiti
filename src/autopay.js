@@ -7,13 +7,47 @@ const logger = require("./utils/logger");
 const { askTelegram } = require("./telegramHandler");
 const readline = require("readline");
 const { fetchGopayOtp, triggerMacrodroidWebhook, waitForGopayReset } = require("./utils/gopayOtpFetcher");
-const CHROME_JA3 =
-  "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0";
-const CHROME_H2 = "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p";
-const CHROME_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36";
-const CHROME_SEC_CH_UA =
-  "\x22Chromium\x22;v=\x22147\x22, \x22Not/A)Brand\x22;v=\x2224\x22, \x22Google Chrome\x22;v=\x22147\x22";
+// --- Fingerprint Pool (dipilih acak per-instance untuk menghindari deteksi massal) ---
+const FINGERPRINT_POOL = [
+  { // Chrome 147 Windows
+    ja3: "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0",
+    h2: "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p",
+    ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    sec: "\x22Chromium\x22;v=\x22147\x22, \x22Not/A)Brand\x22;v=\x2224\x22, \x22Google Chrome\x22;v=\x22147\x22",
+    build: "5674830",
+  },
+  { // Chrome 136 Windows
+    ja3: "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0",
+    h2: "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p",
+    ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+    sec: "\x22Chromium\x22;v=\x22136\x22, \x22Not/A)Brand\x22;v=\x2224\x22, \x22Google Chrome\x22;v=\x22136\x22",
+    build: "5501483",
+  },
+  { // Chrome 135 Windows
+    ja3: "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0",
+    h2: "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p",
+    ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+    sec: "\x22Chromium\x22;v=\x22135\x22, \x22Not/A)Brand\x22;v=\x2224\x22, \x22Google Chrome\x22;v=\x22135\x22",
+    build: "5341033",
+  },
+  { // Chrome 134 Windows
+    ja3: "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0",
+    h2: "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p",
+    ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+    sec: "\x22Chromium\x22;v=\x22134\x22, \x22Not/A)Brand\x22;v=\x2224\x22, \x22Google Chrome\x22;v=\x22134\x22",
+    build: "5195226",
+  },
+  { // Chrome 135 macOS
+    ja3: "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0",
+    h2: "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p",
+    ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+    sec: "\x22Chromium\x22;v=\x22135\x22, \x22Not/A)Brand\x22;v=\x2224\x22, \x22Google Chrome\x22;v=\x22135\x22",
+    build: "5341033",
+  },
+];
+function pickFingerprint() {
+  return FINGERPRINT_POOL[Math.floor(Math.random() * FINGERPRINT_POOL.length)];
+}
 const BASE_CHATGPT = "https://chatgpt.com";
 const BASE_AUTH = "https://auth.openai.com";
 const STRIPE_API = "https://api.stripe.com";
@@ -234,6 +268,13 @@ class ChatGPTAutopay {
     this.password = a.password;
     this.name = a.name;
     this.deviceId = a.deviceId || uuidv4();
+    // Pilih fingerprint acak per-instance
+    const _fp = pickFingerprint();
+    this._ja3 = _fp.ja3;
+    this._h2 = _fp.h2;
+    this._ua = _fp.ua;
+    this._sec = _fp.sec;
+    this._build = _fp.build;
     this.sessionId = uuidv4();
     this.stripeJsId = uuidv4();
     this.tag = a.threadId ? " \u001b[36m[#" + a.threadId + (this.email ? " | " + this.email : "") + "]\u001b[0m " : "";
@@ -296,7 +337,7 @@ class ChatGPTAutopay {
     this.gopayReference = null;
     this.stripeReturnNonce = null;
     this.accessToken = a.accessToken || null;
-    this.buildNumber = "5674830";
+    this.buildNumber = this._build || "5674830";
     this.clientVersion = "prod-6ee9d1a31e859a475cea92af39e34971bf5582c6";
     this._cycleTLS = null;
     this._oaiJar = null;
@@ -328,16 +369,16 @@ class ChatGPTAutopay {
   _cycleTlsOpts(a, b = {}) {
     const c = this._oaiJar?.headerFor(a);
     return {
-      ja3: CHROME_JA3,
-      http2Fingerprint: CHROME_H2,
-      userAgent: CHROME_UA,
+      ja3: this._ja3,
+      http2Fingerprint: this._h2,
+      userAgent: this._ua,
       timeout: 0x3c,
       proxy: this.proxyUrl || undefined,
       disableRedirect: !![],
       enableConnectionReuse: !![],
       headers: {
         "Accept-Language": "en-US,en;q=0.9",
-        "sec-ch-ua": CHROME_SEC_CH_UA,
+        "sec-ch-ua": this._sec,
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": "\x22Windows\x22",
         ...(c ? { Cookie: c } : {}),
