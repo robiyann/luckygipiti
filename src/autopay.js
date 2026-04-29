@@ -2000,7 +2000,21 @@ class ChatGPTAutopay {
           this._cycleTLS = this.sharedCycleTLS || (await initCycleTLS());
           this._oaiJar = new LoginCookieJar();
         }
+        // Warm-up: hit /api/auth/session agar session cookies OpenAI tersedia
+        // sebelum request checkout. Tanpa ini, request 403 karena jar kosong.
+        try {
+          logger.info(this.tag + "Warming up session cookies...");
+          const _ws = await this._oaiGet(
+            "https://chatgpt.com/api/auth/session",
+            { Referer: "https://chatgpt.com/" }
+          );
+          logger.debug(this.tag + "Session warm-up status: " + _ws.status);
+          await sleep(1500);
+        } catch (_we) {
+          logger.debug(this.tag + "Session warm-up failed (non-fatal): " + _we.message);
+        }
       }
+
       logger.info(this.tag + "Info harga...");
       await Promise.all([this.getPricingCountries(), this.getPricingConfig()]);
       logger.info(this.tag + "Sesi checkout...");

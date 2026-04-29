@@ -22,28 +22,6 @@ const clientId = "app_X8zY6vW2pQ9tR3dE7nK1jL5gH";
 const redirectUri = "https://chatgpt.com/api/auth/callback/openai";
 const audience = "https://api.openai.com/v1";
 
-// [NEW] Function to report Plus success to OTP Server
-function reportPhoneSuccess(phone, serverNumber, email) {
-    const otpServerUrl = process.env.OTP_SERVER_URL;
-    if (!otpServerUrl || !phone) return;
-
-    const endpoint = otpServerUrl.endsWith('/') ? `${otpServerUrl}report/plus-success` : `${otpServerUrl}/report/plus-success`;
-    
-    // Fire and forget
-    fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            phone: phone,
-            serverNumber: serverNumber,
-            email: email,
-            timestamp: new Date().toISOString()
-        })
-    }).catch(err => {
-        logger.debug(`[Report] Gagal mengirim statistik Plus ke OTP server: ${err.message}`);
-    });
-}
-
 // Function to run account creation task in isolation
 async function handleAccountTask(task) {
     const { userId, chatId, email, mode, staticPassword, mailProvider, cancelToken } = task;
@@ -240,7 +218,7 @@ async function handleAccountTask(task) {
                     await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                 }
 
-                await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, finalGopayPhone, finalServerNum);
+                await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider);
                 // Ekstrak refresh token dari cookie jar jika ada
                 let refreshToken = null;
                 if (aRes.cookieJar) {
@@ -325,7 +303,7 @@ async function handleAccountTask(task) {
                         await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                     }
 
-                    await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, finalGopayPhone, finalServerNum);
+                    await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider);
                     // Ekstrak refresh token dari cookie jar jika ada
                     let refreshToken = null;
                     if (aRes.cookies) {
@@ -363,7 +341,7 @@ async function handleAccountTask(task) {
     }
 }
 
-async function handleAutopayResult(chatId, email, password, aRes, mailProvider, gopayPhone, serverNumber) {
+async function handleAutopayResult(chatId, email, password, aRes, mailProvider) {
     const state = telegramHandler.getUserState(chatId);
     
     // Referral Bonus Function
@@ -393,11 +371,6 @@ async function handleAutopayResult(chatId, email, password, aRes, mailProvider, 
             logger.error(`[Pool] Gagal memotong point user ${chatId}: ${e.message}`);
         }
         db.incrementStat(chatId, 'totalAccountsCreated');
-        
-        // Report success to OTP Server
-        if (gopayPhone) {
-            reportPhoneSuccess(gopayPhone, serverNumber, email);
-        }
 
         // Jika dalam mode batch, jangan kirim pesan PREMIUM ACTIVATED per-akun agar tidak nyampah
         if (state && state.isBatchMode) {
