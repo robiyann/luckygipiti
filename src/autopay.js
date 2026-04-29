@@ -463,16 +463,16 @@ class ChatGPTAutopay {
     const c = (j, k = {}) => {
       const l = b.headerFor(j);
       return {
-        ja3: CHROME_JA3,
-        http2Fingerprint: CHROME_H2,
-        userAgent: CHROME_UA,
+        ja3: this._ja3,
+        http2Fingerprint: this._h2,
+        userAgent: this._ua,
         timeout: 0x3c,
         proxy: a || undefined,
         disableRedirect: !![],
         enableConnectionReuse: !![],
         headers: {
           "Accept-Language": "en-US,en;q=0.9",
-          "sec-ch-ua": CHROME_SEC_CH_UA,
+          "sec-ch-ua": this._sec,
           "sec-ch-ua-mobile": "?0",
           "sec-ch-ua-platform": "\x22Windows\x22",
           ...(l ? { Cookie: l } : {}),
@@ -617,7 +617,7 @@ class ChatGPTAutopay {
       const s = uuidv4();
       const { sentinelToken: t } = await generateSentinelTokens(
         a,
-        CHROME_UA,
+        this._ua,
         "authorize_continue",
         s,
         this._cycleTLS
@@ -647,7 +647,7 @@ class ChatGPTAutopay {
       } else {
         const { sentinelToken: E } = await generateSentinelTokens(
           a,
-          CHROME_UA,
+          this._ua,
           "password_verify",
           s,
           this._cycleTLS
@@ -841,7 +841,7 @@ class ChatGPTAutopay {
     };
     const { sentinelToken: b } = await generateSentinelTokens(
       this.koreaProxyUrl || "",
-      CHROME_UA,
+      this._ua,
       "chatgpt_checkout",
       this.deviceId,
       this._cycleTLS
@@ -1345,7 +1345,7 @@ class ChatGPTAutopay {
     const i = async () => {
       const { sentinelToken: k } = await generateSentinelTokens(
         this.proxyUrl || "",
-        CHROME_UA,
+        this._ua,
         "chatgpt_checkout",
         this.deviceId,
         this._cycleTLS
