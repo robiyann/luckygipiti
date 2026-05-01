@@ -106,10 +106,9 @@ const MENU_COMMANDS = new Set([
 const mainMenuKeyboard = {
     reply_markup: {
         keyboard: [
-            ['🚀 Full Auto Plus'],
-            ['💳 Auto Pay Bot'],
-            ['⚙️ My Settings', '📊 Server Status'],
-            ['👥 Referral', '❓ Help']
+            ['🚀 Full Auto Plus', '💳 Auto Pay Bot'],
+            ['⚙️ My Settings', '📈 My Stats'],
+            ['👥 Referral', '📊 Server Status', '❓ Help']
         ],
         resize_keyboard: true,
         is_persistent: true
@@ -135,7 +134,11 @@ function getSystemDashboardText() {
             };
             const modeName = mMap[s.mode] || s.mode.toUpperCase();
             const runTime = Math.floor((Date.now() - s.startTime) / 1000);
-            text += `[${idx+1}] 👤 User ${s.userId.substring(0,4)}... | <code>${s.email || 'AUTO'}</code>\n`;
+            
+            const u = db.getUser(s.userId);
+            const userName = u && u.firstName ? u.firstName : s.userId.substring(0,4)+'...';
+            
+            text += `[${idx+1}] 👤 ${userName} | <code>${s.email || 'AUTO'}</code>\n`;
             text += `      💎 ${modeName} | ⏱️ ${runTime}s\n`;
         });
     }
@@ -419,15 +422,26 @@ function initTelegram() {
                 return;
             }
 
-            if (text === '/mystat') {
+            if (text === '/mystat' || text === '📈 My Stats') {
                 const stats = db.getUserStats(chatId) || { points: 0, totalAccountsCreated: 0, totalPlusCreated: 0, totalReferrals: 0, referralCode: 'N/A' };
+                
+                let currentActivity = "<i>Standby / Idle 💤</i>";
+                if (state.currentTaskInfo && state.currentTaskInfo.text) {
+                    currentActivity = state.currentTaskInfo.text;
+                } else if (workerPool.isUserActive(chatId)) {
+                    currentActivity = "<i>Processing task... (waiting for live logs) 🚀</i>";
+                } else if (workerPool.isUserBusy(chatId)) {
+                    currentActivity = "<i>Queued... Waiting for available slot ⏳</i>";
+                }
+
                 bot.sendMessage(chatId, 
-                    `📊 <b>YOUR STATS</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `📊 <b>YOUR STATS & HISTORY</b>\n━━━━━━━━━━━━━━━━━━\n` +
                     `💎 <b>Points Balance :</b> ${stats.points}\n` +
                     `📧 <b>Accounts Made  :</b> ${stats.totalAccountsCreated}\n` +
                     `⭐ <b>Plus Accounts  :</b> ${stats.totalPlusCreated}\n` +
                     `👥 <b>Total Referrals:</b> ${stats.totalReferrals}\n` +
-                    `🔗 <b>Referral Code  :</b> <code>${stats.referralCode}</code>`,
+                    `🔗 <b>Referral Code  :</b> <code>${stats.referralCode}</code>\n\n` +
+                    `🛠️ <b>CURRENT REALTIME ACTIVITY</b>\n━━━━━━━━━━━━━━━━━━\n${currentActivity}`,
                     { parse_mode: 'HTML', ...mainMenuKeyboard }
                 );
                 return;
