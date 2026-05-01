@@ -241,9 +241,10 @@ async function handleAccountTask(task) {
                 logger.info(`Proses pendaftaran sedang berjalan...`);
                 telegramHandler.updateStatusFor(chatId, `📝 <b>Registering Account...</b>\n<i>Please wait for system response...</i>`);
 
+                // Pastikan cache OTP bersih untuk email ini (jika recycle dari sesi lama bot)
+                db.clearOtpCache(currentEmail);
+
                 // Pre-check inbox sebelum Register dimulai.
-                // Jika ada OTP lama di inbox (misal dari email recycle atau percobaan sebelumnya),
-                // langsung blacklist ke cache agar tidak terbaca saat validasi OTP dari OpenAI.
                 if (mailProvider === 'luckmail' && token && userData.luckMailApiKey) {
                     await luckMailApi.prewarmOtpCache(token, currentEmail, userData.luckMailApiKey);
                 } else if (mailProvider === 'tmail' && token) {

@@ -83,6 +83,8 @@ async function generateEmail(baseUrl, apiKey, preferredDomains) {
  */
 async function prewarmOtpCache(token, email, baseUrl) {
     try {
+        // Tunggu sebentar agar inbox sinkron (terutama untuk email recycled)
+        await new Promise(r => setTimeout(r, 2000));
         const apiClient = createApiClient(baseUrl);
         const urlPath = `/api/mailboxes/token/${encodeURIComponent(token)}/otp?service=openai`;
         const response = await apiClient.get(urlPath);
