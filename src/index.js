@@ -243,25 +243,16 @@ async function handleAccountTask(task) {
                 
                 const sRes = await signup.runSignup();
                 if (!sRes.success) {
-                    // --- RECOVERY LOGIC ---
-                    // Trigger jika: (1) email sudah terdaftar (invalid_auth_step), 
-                    // atau (2) Register berhasil tapi OTP gagal/timeout (REGISTER_DONE_OTP_FAILED)
-                    // → Keduanya harus diselesaikan via alur Login, bukan Register ulang!
-                    const isRecoverable = sRes.error && (
-                        sRes.error.includes("Invalid authorization step") ||
-                        sRes.error === "REGISTER_DONE_OTP_FAILED"
-                    );
-                    if (isRecoverable) {
-                        const recoveryReason = sRes.error === "REGISTER_DONE_OTP_FAILED"
-                            ? "Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang..."
-                            : "Email sudah terdaftar. Mencoba alur login...";
-                        logger.info(`[#${threadId}] Recovery: ${recoveryReason}`);
-                        telegramHandler.updateStatusFor(chatId, `🔄 <b>Recovery Mode...</b>\n<i>${recoveryReason}</i>`);
+                    // --- CASE 1: Email sudah pernah terdaftar sepenuhnya ---
+                    // invalid_auth_step = akun sudah ada password-nya → bisa langsung Recovery Login
+                    if (sRes.error && sRes.error.includes("Invalid authorization step")) {
+                        logger.info(`[#${threadId}] Recovery: Email sudah terdaftar, mencoba alur login...`);
+                        telegramHandler.updateStatusFor(chatId, `🔄 <b>Recovery Mode...</b>\n<i>Email sudah terdaftar. Mencoba login...</i>`);
                         
                         const autopay = new ChatGPTAutopay({
                             email: currentEmail, password: effectivePassword, name, 
                             threadId, sharedCycleTLS: localCycleTLS,
-                            accessToken: null, // Kita akan login dari nol
+                            accessToken: null,
                             skipLogin: false,
                             otpFn: otpFnProxy,
                             onAcquireGopay: async () => {
@@ -287,13 +278,31 @@ async function handleAccountTask(task) {
                             await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, activeSlot ? activeSlot.phone : "Unknown", activeSlot ? activeSlot.id : "1");
                             return { ...aRes, email: currentEmail, password: effectivePassword, accountType: 'Plus' };
                         } else {
-                            // Jika recovery pun gagal, baru kita nyerah
                             logger.error(`Recovery gagal: ${aRes.error}`);
                             if (purchaseId) luckMailApi.cancelEmail(purchaseId);
                             if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
                             telegramHandler.updateStatusFor(chatId, `🚫 <b>RECOVERY FAILED</b>\n━━━━━━━━━━━━━━━━━━\n⚠️ Reason: <code>${aRes.error}</code>`);
                             return { success: false, email: currentEmail, error: aRes.error, mailProvider };
                         }
+                    }
+
+                    // --- CASE 2: Register berhasil tapi OTP belum/tidak tiba ---
+                    // Akun dalam "pending verification" state — password belum aktif, tidak bisa login.
+                    // Simpan sebagai Free, user bisa Retry Pay setelah OTP tersedia.
+                    if (sRes.error === "REGISTER_DONE_OTP_FAILED") {
+                        logger.warn(`[#${threadId}] Register OK tapi OTP timeout. Menyimpan sebagai akun Free — user bisa Retry Pay.`);
+                        db.saveAccount(currentEmail, { userId, password: effectivePassword, accountType: 'Free', accessToken: null });
+                        db.incrementStat(chatId, 'totalAccountsCreated');
+                        telegramHandler.updateStatusFor(chatId,
+                            `⚠️ <b>OTP TIMEOUT</b>\n` +
+                            `━━━━━━━━━━━━━━━━━━\n` +
+                            `✅ Registered: <b>SUCCESS</b>\n` +
+                            `❌ OTP       : <b>TIMED OUT</b>\n\n` +
+                            `📧 Email    : <code>${currentEmail}</code>\n` +
+                            `🔑 Password : <code>${effectivePassword}</code>\n` +
+                            `<i>Akun tersimpan sebagai Free. Gunakan "Retry Pay" setelah OTP masuk ke inbox.</i>`
+                        );
+                        return { success: false, email: currentEmail, error: 'OTP Timeout', mailProvider };
                     }
 
                     logger.error(`Pendaftaran gagal: ${sRes.error}`);
