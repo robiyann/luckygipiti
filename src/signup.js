@@ -4,6 +4,7 @@ const { fetchOtpWithRetry } = require("./utils/otpFetcher");
 const { generateRandomBirthday } = require("./utils/emailGenerator");
 const { generateSentinelTokens } = require("./utils/sentinelToken");
 const { askTelegram } = require("./telegramHandler");
+const { clearOtpCache } = require("./db");
 const logger = require("./utils/logger");
 const BASE_CHATGPT = "https://chatgpt.com";
 const BASE_AUTH = "https://auth.openai.com";
@@ -311,6 +312,9 @@ class ChatGPTSignup {
       let e;
       try {
         const k = this.email;
+        // Hapus cache OTP lama sebelum setiap sesi signup baru
+        // agar LuckMail tidak mengembalikan kode dari sesi/batch sebelumnya
+        clearOtpCache(this.email);
         e = await a(this.proxyUrl, {
           email: this.email,
           password: this.password,

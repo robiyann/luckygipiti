@@ -92,6 +92,7 @@ const stmtInsertAccount = db.prepare(`
 
 const stmtGetOtp = db.prepare('SELECT otp FROM otp_cache WHERE email = ?');
 const stmtSaveOtp = db.prepare('INSERT OR REPLACE INTO otp_cache (email, otp) VALUES (?, ?)');
+const stmtClearOtp = db.prepare('DELETE FROM otp_cache WHERE email = ?');
 
 const stmtGetOrderByEmail = db.prepare('SELECT * FROM orders WHERE email = ? LIMIT 1');
 const stmtSaveOrder = db.prepare('INSERT OR REPLACE INTO orders (orderId, email, status, date) VALUES (?, ?, ?, ?)');
@@ -264,6 +265,12 @@ function getOtpCache(email) {
     return row ? row.otp : null;
 }
 
+// Hapus cache OTP untuk email tertentu
+// Dipanggil sebelum sesi signup baru agar OTP dari sesi sebelumnya tidak mengacaukan validasi
+function clearOtpCache(email) {
+    stmtClearOtp.run(email);
+}
+
 // ----------------------
 // ORDERS
 // ----------------------
@@ -292,6 +299,7 @@ module.exports = {
     
     saveOtpCache,
     getOtpCache,
+    clearOtpCache,
     
     saveOrder,
     getOrderByEmail
