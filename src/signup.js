@@ -372,6 +372,11 @@ class ChatGPTSignup {
         j = n?.error?.message || n?.detail || n?.message || i;
       } catch { }
       if (!j) j = h ? JSON.stringify(h).substring(0x0, 0x64) : "unknown";
+
+      if (j && typeof j === 'string' && j.includes("Invalid authorization step")) {
+        logger.error(this.tag + "register: " + j + " (Akun kemungkinan sudah terdaftar. Skip retry)");
+        return { success: ![], email: this.email, error: j };
+      }
       if (
         f === "init" ||
         f === "csrf" ||
