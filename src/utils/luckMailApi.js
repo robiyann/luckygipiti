@@ -85,7 +85,7 @@ async function purchaseEmail(apiKey, domains) {
  */
 async function fetchVerificationCode(token, email, apiKey) {
     const maxRetries = 10;
-    const delayMs = 2000;
+    const delayMs = 3000;
     const lastOtp = db.getOtpCache(email);
 
     logger.info(`[LuckMail] Memulai pencarian OTP untuk ${email} (Token: ${token})...`);
