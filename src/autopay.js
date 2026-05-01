@@ -1943,33 +1943,63 @@ class ChatGPTAutopay {
       "/checkout/verify?stripe_session_id=" +
       this.checkoutSessionId +
       "&processor_entity=openai_llc&plan_type=plus";
-    const b = await this._oaiGetHtml(a, {
-      Referer: "https://checkout.stripe.com/",
-    });
-    logger.debug(this.tag + "Checkout verify ✓");
+
+    const getDirect = async (url, referer) => {
+      const opts = {
+        ja3: this._ja3, http2Fingerprint: this._h2, userAgent: this._ua, timeout: 60, proxy: "",
+        disableRedirect: true,
+        headers: {
+          "Accept-Language": "en-US,en;q=0.9", "sec-ch-ua": this._sec, "sec-ch-ua-platform": "\"Windows\"",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Referer": referer,
+          ...(this._oaiJar ? { Cookie: this._oaiJar.headerFor(url) } : {})
+        }
+      };
+      const r = await this._cycleTLS(url, opts, "get");
+      if (this._oaiJar) this._oaiJar.capture(r.headers, r.finalUrl || url);
+      return r;
+    };
+
+    const b = await getDirect(a, "https://checkout.stripe.com/");
+    logger.debug(this.tag + "Checkout verify ✓ (Local IP)");
     await sleep(0xbb8);
-    const c = await this._oaiGetHtml(a + "&refresh_account=true", {
-      Referer: a,
-    });
-    logger.success(this.tag + "ChatGPT Plus ✓");
+    const c = await getDirect(a + "&refresh_account=true", a);
+    logger.success(this.tag + "ChatGPT Plus ✓ (Local IP)");
     return c.data;
   }
   async checkSubscriptionStatus() {
+    const getDirectJson = async (url) => {
+      const opts = {
+        ja3: this._ja3, http2Fingerprint: this._h2, userAgent: this._ua, timeout: 60, proxy: "",
+        disableRedirect: true,
+        headers: {
+          "Accept-Language": "en-US,en;q=0.9", "sec-ch-ua": this._sec, "sec-ch-ua-platform": "\"Windows\"",
+          "Accept": "application/json",
+          "Referer": BASE_CHATGPT + "/",
+          ...(this._oaiJar ? { Cookie: this._oaiJar.headerFor(url) } : {})
+        }
+      };
+      const r = await this._cycleTLS(url, opts, "get");
+      if (this._oaiJar) this._oaiJar.capture(r.headers, r.finalUrl || url);
+      return r;
+    };
+
     for (let i = 0; i < 10; i++) {
       if (i > 0) await sleep(3000);
       
-      // Hit endpoint profil akun secara langsung untuk memastikan status "Plus"
-      const a = await this._oaiGet(
-        BASE_CHATGPT + "/backend-api/accounts/check/v4-2023-04-27"
-      );
+      const a = await getDirectJson(BASE_CHATGPT + "/backend-api/accounts/check/v4-2023-04-27");
       
-      // Endpoint ini mengembalikan object accounts. Jika berhasil Plus, account.plan_type = 'plus'
-      if (a.data && a.data.accounts) {
+      let data = a.data;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (e) { }
+      }
+
+      if (data && data.accounts) {
         let hasPlus = false;
         let planName = "Unknown";
         
-        for (const accountId in a.data.accounts) {
-          const acc = a.data.accounts[accountId];
+        for (const accountId in data.accounts) {
+          const acc = data.accounts[accountId];
           if (acc.account) {
             const currentPlan = acc.account.plan_type;
             if (currentPlan === "plus") {
@@ -1983,12 +2013,12 @@ class ChatGPTAutopay {
         }
         
         if (hasPlus) {
-          logger.success(this.tag + "Subscription: " + planName + " ✓ (Account Verified)");
+          logger.success(this.tag + "Subscription: " + planName + " ✓ (Account Verified - Local IP)");
           return true;
         }
       }
       
-      logger.debug(this.tag + `Polling account status... (${i+1}/10)`);
+      logger.debug(this.tag + `Polling account status (Local IP)... (${i+1}/10)`);
     }
     return false;
   }
