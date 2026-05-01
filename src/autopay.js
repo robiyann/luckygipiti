@@ -1944,10 +1944,15 @@ class ChatGPTAutopay {
         
         for (const accountId in a.data.accounts) {
           const acc = a.data.accounts[accountId];
-          if (acc.account && acc.account.plan_type === "plus") {
-            hasPlus = true;
-            planName = "ChatGPT Plus";
-            break;
+          if (acc.account) {
+            const currentPlan = acc.account.plan_type;
+            if (currentPlan === "plus") {
+              hasPlus = true;
+              planName = "ChatGPT Plus";
+              break;
+            } else {
+              logger.debug(this.tag + `Account [${accountId}] plan_type = ${currentPlan}`);
+            }
           }
         }
         
@@ -2100,7 +2105,7 @@ class ChatGPTAutopay {
       logger.info(this.tag + "Verifikasi akhir langganan API...");
       const isSub = await this.checkSubscriptionStatus();
       if (!isSub) {
-        throw new Error("Verifikasi API gagal: Status transaksi bukan paid/complete.");
+        throw new Error("Verifikasi API gagal: Status akun belum menjadi Plus setelah polling (menunggu update dari Stripe).");
       }
 
       return {
