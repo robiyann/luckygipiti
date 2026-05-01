@@ -10,7 +10,7 @@ const logger = require('./logger');
  */
 async function fetchGopayOtp(gopayPhone, serverUrl, serverNumber = '1') {
     const baseUrl = serverUrl.replace(/\/$/, '');
-    const maxAttempts = 25;
+    const maxAttempts = 5;
     const delayMs = 3000;
     const phone = String(gopayPhone).replace(/^0|^\+62/, '');
 

@@ -720,7 +720,7 @@ class ChatGPTAutopay {
           }
         } else {
             // Auto mode logic: Polling OTP dengan proteksi terhadap OTP lama (delay)
-            const waitTimes = [10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000]; // 8 percobaan x 10 detik = 80 detik total
+            const waitTimes = [10000, 10000]; // 2 percobaan x 10 detik = 20 detik total
             for (let R = 0; R < waitTimes.length; R++) {
                 logger.info(this.tag + `Login/Recovery: Waiting for fresh OTP... (Attempt ${R + 1}/${waitTimes.length})`);
                 await sleep(waitTimes[R]);
