@@ -1465,16 +1465,42 @@ class ChatGPTAutopay {
       throw new Error("[GoPay] Stripe redirect URL not found after polling");
     }
     logger.debug(this.tag + "Following Stripe redirect...");
-    // Gunakan stripeClient (SGP proxy) untuk hit hooks.stripe.com karena DataImpulse (General Proxy) memblokirnya.
-    const j = await this.stripeClient.get(b, {
-      maxRedirects: 0x0,
-      validateStatus: (T) => T < 0x1f4,
-      headers: {
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        Referer: "https://chatgpt.com/",
-      },
-    });
+    let j;
+    let redirectSuccess = false;
+    let lastError = "";
+
+    for (let attempts = 0; attempts < 3; attempts++) {
+      try {
+        // Mulai dengan stripeClient (SGP proxy)
+        let clientToUse = this.stripeClient;
+        
+        // Jika gagal di attempt pertama, coba fallback ke midtransClient (General Proxy)
+        if (attempts > 0) {
+          logger.debug(this.tag + "Fallback ke General Proxy untuk redirect Stripe...");
+          clientToUse = this.midtransClient;
+        }
+
+        j = await clientToUse.get(b, {
+          maxRedirects: 0x0,
+          validateStatus: (T) => T < 0x1f4 && T !== 403, // Jangan biarkan 403 lolos sebagai success, langsung lempar ke catch
+          headers: {
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            Referer: "https://chatgpt.com/",
+          },
+        });
+        
+        redirectSuccess = true;
+        break; // Berhasil, keluar dari loop
+      } catch (err) {
+        lastError = err.message;
+        logger.debug(this.tag + `Redirect attempt ${attempts + 1} failed: ${lastError}`);
+        await sleep(2000);
+      }
+    }
+
+    if (!redirectSuccess) {
+      throw new Error("Gagal follow Stripe redirect setelah 3x percobaan: " + lastError);
+    }
     if (j.status === 0x12e || j.status === 0x12d) {
       const T = j.headers.location;
       const U = T.match(/\/snap\/v4\/redirection\/([a-f0-9-]+)/);
