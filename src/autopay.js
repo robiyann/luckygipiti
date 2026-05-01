@@ -2105,7 +2105,7 @@ class ChatGPTAutopay {
       logger.info(this.tag + "Verifikasi akhir langganan API...");
       const isSub = await this.checkSubscriptionStatus();
       if (!isSub) {
-        throw new Error("Verifikasi API gagal: Status akun belum menjadi Plus setelah polling (menunggu update dari Stripe).");
+        throw new Error("Verifikasi API gagal: Tipe akun OpenAI belum berubah menjadi Plus setelah dipoling 10 kali.");
       }
 
       return {
