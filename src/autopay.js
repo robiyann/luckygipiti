@@ -2092,9 +2092,10 @@ class ChatGPTAutopay {
             const msg = gopayErr.message || "";
             const isNetworkError = msg.includes("socket disconnected") || msg.includes("ECONNRESET") || msg.includes("socket hang up");
             const isOtpError = msg.includes("OTP") || msg.includes("Timeout") || msg.includes("Failed to connect GoPay") || msg.includes("Invalid verification code");
+            const isLinkedConflict = gopayErr.linkedConflict || msg.includes("sudah terhubung");
             
-            if (isOtpError || isNetworkError) {
-              logger.warn(this.tag + `GoPay Link/Network gagal: ${msg}. Merilis slot #${this.serverNumber} dan rotasi...`);
+            if (isOtpError || isNetworkError || isLinkedConflict) {
+              logger.warn(this.tag + `GoPay Link/Network/Conflict gagal: ${msg}. Merilis slot #${this.serverNumber} dan rotasi...`);
               if (typeof this.onReleaseGopay === 'function') {
                 await this.onReleaseGopay(this.serverNumber);
               }
