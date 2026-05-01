@@ -153,4 +153,4 @@ async function fetchVerificationCode(token, email, baseUrl) {
     return null;
 }
 
-module.exports = { getDomains, generateEmail, fetchVerificationCode };
+module.exports = { getDomains, generateEmail, fetchVerificationCode, prewarmOtpCache };
