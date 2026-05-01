@@ -2052,21 +2052,28 @@ class ChatGPTAutopay {
       logger.info(this.tag + "Info harga...");
       await Promise.all([this.getPricingCountries(), this.getPricingConfig()]);
       logger.info(this.tag + "Sesi checkout...");
-      // Jika checkout gagal 401 (token expired), coba login ulang 1x
+      // Jika checkout gagal 401 (token expired), coba login ulang. Jika 502/network error, coba retry hingga 3x.
       let checkoutErr = null;
-      for (let _ck = 0; _ck < 2; _ck++) {
+      for (let _ck = 0; _ck < 3; _ck++) {
         try {
           await this.createCheckoutSession();
           checkoutErr = null;
-          break;
+          break; // Sukses, keluar loop
         } catch (e) {
           const errStr = e.message || '';
-          if (_ck === 0 && (errStr.includes('401') || errStr.toLowerCase().includes('unauthorized') || errStr.toLowerCase().includes('access token is missing'))) {
+          const isNetworkError = errStr.includes('502') || errStr.includes('503') || errStr.includes('500') || errStr.includes('socket') || errStr.includes('ECONN') || errStr.includes('timeout') || errStr.includes('aborted');
+          const isAuthError = errStr.includes('401') || errStr.toLowerCase().includes('unauthorized') || errStr.toLowerCase().includes('access token is missing');
+
+          if (isAuthError && _ck === 0) { // Hanya coba login ulang 1x untuk 401
             logger.warn(this.tag + "Checkout 401: token expired! Melakukan login ulang...");
             await this.loginToChatGPT(); // Refresh token
             checkoutErr = e;
+          } else if (isNetworkError && _ck < 2) { // Coba 3x (index 0, 1)
+            logger.warn(this.tag + `Checkout network error/502: ${errStr.substring(0, 50)}. Retrying in 5s... (${_ck + 1}/3)`);
+            await sleep(5000);
+            checkoutErr = e;
           } else {
-            throw e; // Bukan auth error, langsung lempar
+            throw e; // Bukan auth/network error atau retries habis, langsung lempar gagal total
           }
         }
       }
