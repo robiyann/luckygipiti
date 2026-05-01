@@ -2097,15 +2097,32 @@ class ChatGPTAutopay {
 
         while (!otpSuccess && retryCount < maxRetries) {
           if (!this.gopayPhone && typeof this.onAcquireGopay === 'function') {
-            const slot = await this.onAcquireGopay();
-            if (slot) {
-              this.gopayPhone = slot.phone;
-              this.gopayPin = slot.pin;
-              this.serverNumber = String(slot.id);
-              this.webhookAction = slot.webhook_action;
-              logger.success(this.tag + `[Pool] Berhasil mengunci Slot #${this.serverNumber} (${this.gopayPhone})`);
-            } else {
-              throw new Error("Gagal mengunci slot GoPay dari server OTP.");
+            let slot = null;
+            let poolRetries = 0;
+            const maxPoolRetries = 18; // 18 * 10 detik = 3 menit antre maksimal
+
+            while (!slot && poolRetries < maxPoolRetries) {
+              try {
+                slot = await this.onAcquireGopay();
+              } catch (e) {
+                // Biasanya Axios melempar error 503 jika pool kosong, kita abaikan saja untuk lanjut antre
+              }
+
+              if (slot) {
+                this.gopayPhone = slot.phone;
+                this.gopayPin = slot.pin;
+                this.serverNumber = String(slot.id);
+                this.webhookAction = slot.webhook_action;
+                logger.success(this.tag + `[Pool] Berhasil mengunci Slot #${this.serverNumber} (${this.gopayPhone})`);
+              } else {
+                poolRetries++;
+                logger.warn(this.tag + `[Pool] Semua slot sedang dipakai. Menunggu antrean 10 detik... (${poolRetries}/${maxPoolRetries})`);
+                await sleep(10000);
+              }
+            }
+
+            if (!slot) {
+              throw new Error("Gagal mengunci slot GoPay dari server OTP setelah mengantre 3 menit.");
             }
           }
 
