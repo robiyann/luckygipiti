@@ -1952,6 +1952,7 @@ class ChatGPTAutopay {
           "Accept-Language": "en-US,en;q=0.9", "sec-ch-ua": this._sec, "sec-ch-ua-platform": "\"Windows\"",
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "Referer": referer,
+          "Authorization": "Bearer " + this.accessToken,
           ...(this._oaiJar ? { Cookie: this._oaiJar.headerFor(url) } : {})
         }
       };
@@ -1976,6 +1977,7 @@ class ChatGPTAutopay {
           "Accept-Language": "en-US,en;q=0.9", "sec-ch-ua": this._sec, "sec-ch-ua-platform": "\"Windows\"",
           "Accept": "application/json",
           "Referer": BASE_CHATGPT + "/",
+          "Authorization": "Bearer " + this.accessToken,
           ...(this._oaiJar ? { Cookie: this._oaiJar.headerFor(url) } : {})
         }
       };
