@@ -405,11 +405,11 @@ class ChatGPTSignup {
       // karena akan memanggil Register lagi dan menyebabkan invalid_auth_step!
       // Kembalikan error khusus agar index.js menanganinya via Recovery Login Flow.
       if (f === "otp_validate") {
-        logger.warn(this.tag + "OTP Validate: " + j + " — Register sudah selesai, menyerahkan ke Recovery Login Flow.");
+        logger.warn(this.tag + "OTP Validate: " + j + " — Register selesai, OTP salah/terlambat. Mengirim sinyal REGISTER_DONE_OTP_FAILED.");
         return { success: ![], email: this.email, error: "REGISTER_DONE_OTP_FAILED" };
       }
       if (f === "otp") {
-        logger.warn(this.tag + "OTP timeout — Register sudah selesai, menyerahkan ke Recovery Login Flow.");
+        logger.warn(this.tag + "OTP tidak diterima — Register selesai. Mengirim sinyal REGISTER_DONE_OTP_FAILED.");
         return { success: ![], email: this.email, error: "REGISTER_DONE_OTP_FAILED" };
       }
       if (f === "create_account") {
