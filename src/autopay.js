@@ -719,15 +719,14 @@ class ChatGPTAutopay {
             throw new Error("OTP validate gagal: " + Xm);
           }
         } else {
-            // Auto mode logic
-            const waitTimes = [10000, 10000, 10000];
+            // Auto mode logic: Polling OTP dengan proteksi terhadap OTP lama (delay)
+            const waitTimes = [10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000]; // 8 percobaan x 10 detik = 80 detik total
             for (let R = 0; R < waitTimes.length; R++) {
-                logger.info(this.tag + "Login: Waiting OTP... (" + (waitTimes[R]/1000) + "s)");
+                logger.info(this.tag + `Login/Recovery: Waiting for fresh OTP... (Attempt ${R + 1}/${waitTimes.length})`);
                 await sleep(waitTimes[R]);
                 
                 let candidates = [];
                 try {
-                    // Try to fetch candidates again
                     const provider = this.otpConfig.provider;
                     if (provider === "ikona-oni" || provider === "3") {
                         candidates = await fetchOtpIkonaCandidates(this.email, {
@@ -741,11 +740,15 @@ class ChatGPTAutopay {
                     }
                 } catch { candidates = []; }
 
+                // Ambil kode terbaru yang BELUM PERNAH kita coba di sesi ini
                 const newOtp = candidates.find((o) => !r.has(String(o)));
-                if (!newOtp) continue;
+                if (!newOtp) {
+                    logger.debug(this.tag + "Sesi: Belum ada kode baru di inbox...");
+                    continue;
+                }
 
-                r.add(String(newOtp));
-                logger.info(this.tag + "Sesi: Mencoba kode " + newOtp + "...");
+                r.add(String(newOtp)); // Masukkan ke daftar hitam agar tidak dipakai lagi jika salah
+                logger.info(this.tag + "Sesi: Mencoba kode baru " + newOtp + "...");
                 const VRes = await g(
                     BASE_AUTH + "/api/accounts/email-otp/validate",
                     { code: newOtp },
@@ -755,12 +758,13 @@ class ChatGPTAutopay {
                 if (WRes?.continue_url) {
                     A = WRes.continue_url;
                     M = true;
-                    logger.info(this.tag + "Sesi: Kode ✓");
+                    logger.info(this.tag + "Sesi: Kode ✓ (Sukses)");
                     break;
                 }
                 const XErr = WRes?.error?.code || "unknown";
                 if (XErr === "wrong_email_otp_code") {
-                    logger.warn(this.tag + "Sesi: Kode tidak cocok, coba lagi...");
+                    logger.warn(this.tag + "Sesi: Kode " + newOtp + " salah/lama. Mencari kode baru lagi...");
+                    // Loop berlanjut, r.has(newOtp) akan memastikan kita tidak mengambil kode ini lagi
                     continue;
                 }
                 throw new Error("OTP validate gagal: " + XErr);

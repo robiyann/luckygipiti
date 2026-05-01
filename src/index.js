@@ -243,6 +243,49 @@ async function handleAccountTask(task) {
                 
                 const sRes = await signup.runSignup();
                 if (!sRes.success) {
+                    // --- RECOVERY LOGIC: Jika email sudah terdaftar, coba tembus via alur Login ---
+                    if (sRes.error && sRes.error.includes("Invalid authorization step")) {
+                        logger.info(this.tag + "Recovery: Email sudah terdaftar. Mencoba alur login untuk menyelesaikan pendaftaran...");
+                        telegramHandler.updateStatusFor(chatId, `🔄 <b>Recovery Mode...</b>\n<i>Email sudah terdaftar, mencoba login & verifikasi...</i>`);
+                        
+                        const autopay = new ChatGPTAutopay({
+                            email: currentEmail, password: effectivePassword, name, 
+                            threadId, sharedCycleTLS: localCycleTLS,
+                            accessToken: null, // Kita akan login dari nol
+                            skipLogin: false,
+                            otpFn: otpFnProxy,
+                            onAcquireGopay: async () => {
+                                telegramHandler.updateStatusFor(chatId, `⌛ <b>Waiting for GoPay Slot...</b>`);
+                                activeSlot = await acquireGopaySlot(userId, otpServerUrl);
+                                return activeSlot;
+                            },
+                            onReleaseGopay: async (slotId) => {
+                                await releaseGopaySlot(otpServerUrl, slotId).catch(() => {});
+                                activeSlot = null;
+                            },
+                            earlyReleaseFn: async () => {
+                                if (activeSlot) {
+                                    await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
+                                    activeSlot = null;
+                                }
+                            }
+                        });
+
+                        const aRes = await autopay.runAutopay();
+                        if (aRes.success) {
+                            if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
+                            await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, activeSlot ? activeSlot.phone : "Unknown", activeSlot ? activeSlot.id : "1");
+                            return { ...aRes, email: currentEmail, password: effectivePassword, accountType: 'Plus' };
+                        } else {
+                            // Jika recovery pun gagal, baru kita nyerah
+                            logger.error(`Recovery gagal: ${aRes.error}`);
+                            if (purchaseId) luckMailApi.cancelEmail(purchaseId);
+                            if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
+                            telegramHandler.updateStatusFor(chatId, `🚫 <b>RECOVERY FAILED</b>\n━━━━━━━━━━━━━━━━━━\n⚠️ Reason: <code>${aRes.error}</code>`);
+                            return { success: false, email: currentEmail, error: aRes.error, mailProvider };
+                        }
+                    }
+
                     logger.error(`Pendaftaran gagal: ${sRes.error}`);
                     if (purchaseId) luckMailApi.cancelEmail(purchaseId);
                     if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
