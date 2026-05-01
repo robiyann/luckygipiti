@@ -2091,7 +2091,7 @@ class ChatGPTAutopay {
           } catch (gopayErr) {
             const msg = gopayErr.message || "";
             const isNetworkError = msg.includes("socket disconnected") || msg.includes("ECONNRESET") || msg.includes("socket hang up");
-            const isOtpError = msg.includes("OTP") || msg.includes("Timeout") || msg.includes("Failed to connect GoPay") || msg.includes("Invalid verification code");
+            const isOtpError = msg.includes("OTP") || msg.includes("Timeout") || msg.includes("Failed to connect GoPay") || msg.includes("Invalid verification code") || msg.includes("user-consent");
             const isLinkedConflict = gopayErr.linkedConflict || msg.includes("sudah terhubung");
             
             if (isOtpError || isNetworkError || isLinkedConflict) {
