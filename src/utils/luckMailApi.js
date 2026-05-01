@@ -138,6 +138,38 @@ async function fetchVerificationCode(token, email, apiKey) {
 }
 
 /**
+ * Cek inbox SEBELUM Register dipanggil dan blacklist OTP yang sudah ada.
+ * Tujuan: mencegah OTP lama (dari percobaan sebelumnya atau email recycle) 
+ * digunakan saat validasi OTP yang sebenarnya.
+ * 
+ * @param {string} token - Token dari email yang dibeli.
+ * @param {string} email - Alamat email.
+ * @param {string} apiKey - API Key LuckMail dari user
+ */
+async function prewarmOtpCache(token, email, apiKey) {
+    try {
+        const apiClient = createApiClient(apiKey);
+        const response = await apiClient.get(`/email/token/${token}/code`);
+        if (response.data && response.data.data && response.data.data.verification_code) {
+            const codeRaw = response.data.data.verification_code;
+            const match = String(codeRaw).match(/\b(\d{6})\b/);
+            if (match && match[1]) {
+                const existingOtp = match[1];
+                logger.debug(`[LuckMail] Pre-check: Inbox sudah ada OTP ${existingOtp} untuk ${email}. Diblacklist agar tidak terbaca ulang.`);
+                db.saveOtpCache(email, existingOtp); // Simpan ke cache = blacklist untuk fetch berikutnya
+            } else {
+                logger.debug(`[LuckMail] Pre-check: Inbox kosong untuk ${email}. Siap menerima OTP baru.`);
+            }
+        } else {
+            logger.debug(`[LuckMail] Pre-check: Inbox kosong untuk ${email}. Siap menerima OTP baru.`);
+        }
+    } catch (e) {
+        // Non-fatal, lanjutkan signup walau pre-check gagal
+        logger.debug(`[LuckMail] Pre-check gagal (non-fatal): ${e.message}`);
+    }
+}
+
+/**
  * Mengirimkan appeal karena email tidak menerima OTP
  * @param {number|string} purchaseId
  * @param {string} apiKey
@@ -163,5 +195,6 @@ async function cancelEmail(purchaseId, apiKey) {
 module.exports = {
     purchaseEmail,
     fetchVerificationCode,
+    prewarmOtpCache,
     cancelEmail
 };
