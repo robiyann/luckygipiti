@@ -139,41 +139,14 @@ async function handleAccountTask(task) {
     const otpServerUrl = process.env.OTP_SERVER_URL;
     let activeSlot = null;
 
-    // --- GOPAY POOL CLAIM ---
+    // --- GOPAY POOL CLAIM DEFERRED ---
     const isAutopayMode = mode.includes('autopay') || mode.includes('auto_loginpay');
-    if (otpServerUrl && isAutopayMode) {
-        logger.info(`[Pool] Mencari slot GoPay yang tersedia...`);
-        telegramHandler.updateStatusFor(chatId, `⌛ <b>Waiting for GoPay Slot...</b>\nBot is processing in turns, please wait...`);
-        
-        try {
-            // New fair queue system: wait until a slot is granted by coordinator
-            activeSlot = await acquireGopaySlot(userId, otpServerUrl);
-            logger.success(`[Pool] Berhasil mengunci Slot #${activeSlot.id} (${activeSlot.phone})`);
-        } catch (err) {
-            telegramHandler.updateStatusFor(chatId, `🚫 <b>POOL ERROR</b>\nPayment system failed to claim a GoPay slot from server: ${err.message}`);
-            return { success: false, email: currentEmail, error: "GoPay Pool Error" };
-        }
-        
-        if (!activeSlot) {
-            telegramHandler.updateStatusFor(chatId, `🚫 <b>POOL ERROR</b>\nPayment system could not claim a GoPay slot. Please contact admin.`);
-            return { success: false, email: currentEmail, error: "GoPay Pool Mandatory but Unavailable" };
-        }
-    }
+    // We no longer lock the GoPay slot here. It is locked during the payment phase in autopay.js
 
     // In multi-user context, we create a fresh CycleTLS instance for this run
     const localCycleTLS = await initCycleTLS();
     
-    // FORCED POOL LOGIC: Always use slot data, no fallback to user profile
-    const finalGopayPhone = activeSlot ? activeSlot.phone : null;
-    const finalGopayPin = activeSlot ? activeSlot.pin : null;
-    const finalServerNum = activeSlot ? String(activeSlot.id) : '1';
-    const finalWebhook = activeSlot ? activeSlot.webhook_action : 'reset-link';
-
-    if (isAutopayMode && !finalGopayPhone) {
-        telegramHandler.updateStatusFor(chatId, `⚠️ <b>SYSTEM ERROR</b>\nGoPay pool is not configured. Autopay cancelled.`);
-        await localCycleTLS.exit().catch(()=>{});
-        return { success: false, error: "Missing Pool Data" };
-    }
+    // Slot will be managed in autopay.js
 
     // Proxy OTP function based on mode
     let otpFnProxy;
@@ -210,12 +183,19 @@ async function handleAccountTask(task) {
                 
                 const autopay = new ChatGPTAutopay({
                     email: currentEmail, password: effectivePassword, name, 
-                    gopayPhone: finalGopayPhone, gopayPin: finalGopayPin,
-                    serverNumber: finalServerNum, webhookAction: finalWebhook,
                     threadId, sharedCycleTLS: localCycleTLS,
                     accessToken: acc.accessToken,
                     skipLogin: true,
                     otpFn: otpFnProxy,
+                    onAcquireGopay: async () => {
+                        telegramHandler.updateStatusFor(chatId, `⌛ <b>Waiting for GoPay Slot...</b>`);
+                        activeSlot = await acquireGopaySlot(userId, otpServerUrl);
+                        return activeSlot;
+                    },
+                    onReleaseGopay: async (slotId) => {
+                        await releaseGopaySlot(otpServerUrl, slotId).catch(() => {});
+                        activeSlot = null;
+                    },
                     earlyReleaseFn: async () => {
                         if (activeSlot) {
                             await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
@@ -232,7 +212,7 @@ async function handleAccountTask(task) {
                     await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                 }
 
-                await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, finalGopayPhone, finalServerNum);
+                await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, activeSlot ? activeSlot.phone : "Unknown", activeSlot ? activeSlot.id : "1");
                 // Ekstrak refresh token dari cookie jar jika ada
                 let refreshToken = null;
                 if (aRes.cookieJar) {
@@ -287,20 +267,21 @@ async function handleAccountTask(task) {
 
                 if (mode === 'autopay' || mode === 'auto_autopay') {
                     logger.info(`Proses pembayaran GoPay...`);
-                    // activeSlot is now mandatory
-                    if (!activeSlot) {
-                        telegramHandler.updateStatusFor(chatId, `⚠️ <b>POOL SIBUK</b>\nRegistrasi berhasil, tapi slot GoPay tidak tersedia. Silakan lakukan Retry Autopay nanti.`);
-                        return { success: false, email: currentEmail, password: effectivePassword, accountType: 'Free', error: "GoPay Pool Not Available", mailProvider };
-                    }
-
                     const autopay = new ChatGPTAutopay({
                         email: currentEmail, password: effectivePassword, name, 
-                        gopayPhone: finalGopayPhone, gopayPin: finalGopayPin,
-                        serverNumber: finalServerNum, webhookAction: finalWebhook,
                         threadId, sharedCycleTLS: localCycleTLS,
                         accessToken: sRes.accessToken,
                         skipLogin: true,
                         otpFn: otpFnProxy,
+                        onAcquireGopay: async () => {
+                            telegramHandler.updateStatusFor(chatId, `⌛ <b>Waiting for GoPay Slot...</b>`);
+                            activeSlot = await acquireGopaySlot(userId, otpServerUrl);
+                            return activeSlot;
+                        },
+                        onReleaseGopay: async (slotId) => {
+                            await releaseGopaySlot(otpServerUrl, slotId).catch(() => {});
+                            activeSlot = null;
+                        },
                         earlyReleaseFn: async () => {
                             if (activeSlot) {
                                 await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
@@ -317,7 +298,7 @@ async function handleAccountTask(task) {
                         await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                     }
 
-                    await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, finalGopayPhone, finalServerNum);
+                    await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, activeSlot ? activeSlot.phone : "Unknown", activeSlot ? activeSlot.id : "1");
                     // Ekstrak refresh token dari cookie jar jika ada
                     let refreshToken = null;
                     if (aRes.cookies) {

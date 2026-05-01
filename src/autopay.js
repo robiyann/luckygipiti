@@ -1,3 +1,4 @@
+const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
 const { createClient } = require("./utils/httpClient");
 const { fetchOtpWithRetry } = require("./utils/otpFetcher");
@@ -287,6 +288,8 @@ class ChatGPTAutopay {
     this.gopayPin = a.gopayPin;
     this.serverNumber = a.serverNumber || '1';
     this.webhookAction = a.webhookAction || 'reset-link';
+    this.onAcquireGopay = a.onAcquireGopay || null;
+    this.onReleaseGopay = a.onReleaseGopay || null;
     this.skipOtp = a.skipOtp || ![];
     this.skipLogin = a.skipLogin || ![];
     this.earlyReleaseFn = a.earlyReleaseFn || null;
@@ -324,10 +327,11 @@ class ChatGPTAutopay {
       this.loginClient = this.client;
       this.loginJar = this.jar;
     }
-    const { client: d, jar: e } = createClient(null);
+    const sgpProxy = process.env.SGP_PROXY_URL || this.proxyUrl;
+    const { client: d, jar: e } = createClient(sgpProxy);
     this.stripeClient = d;
     this.stripeJar = e;
-    const { client: f, jar: g } = createClient(null);
+    const { client: f, jar: g } = createClient(sgpProxy);
     this.midtransClient = f;
     this.midtransJar = g;
     this.checkoutSessionId = null;
@@ -829,61 +833,29 @@ class ChatGPTAutopay {
     return a.data;
   }
   async createCheckoutSession() {
-    const a = {
-      plan_name: "chatgptplusplan",
-      billing_details: { country: "ID", currency: "IDR" },
-      promo_campaign: {
-        promo_campaign_id: "plus-1-month-free",
-        is_coupon_from_query_param: ![],
+    logger.info(this.tag + "Sesi checkout (via ErdogAI)...");
+    const res = await axios.post("https://tools.erdogai.com/get_plus_1month_free_url", {
+      access_token: this.accessToken,
+      country: "ID",
+      currency: "IDR"
+    }, {
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": this._ua,
+        "Accept": "*/*",
+        "Origin": "https://tools.erdogai.com",
+        "Referer": "https://tools.erdogai.com/"
       },
-      entry_point: "all_plans_pricing_modal",
-      checkout_ui_mode: "custom",
-    };
-    const { sentinelToken: b } = await generateSentinelTokens(
-      this.koreaProxyUrl || "",
-      this._ua,
-      "chatgpt_checkout",
-      this.deviceId,
-      this._cycleTLS
-    );
-    const c = {};
-    if (b) c["OpenAI-Sentinel-Token"] = b;
-    const d = await this._oaiPost(
-      BASE_CHATGPT + "/backend-api/payments/checkout",
-      a,
-      c,
-      this.koreaProxyUrl
-    );
-    logger.info(this.tag + "Checkout session status: " + d.status);
-    if (d.status !== 200) {
-      const f = typeof d.data === "string" ? d.data : JSON.stringify(d.data);
-      if (d.status === 0x193 && f.includes("cf_chl")) {
-        throw new Error("Checkout blocked by Cloudflare (403)");
-      }
-      let g;
-      try {
-        const h = typeof d.data === "object" ? d.data : JSON.parse(f);
-        const raw = h?.detail || h?.error?.message || h?.message;
-        // Safely convert to string — avoid '[object Object]'
-        g = typeof raw === "string" ? raw : raw ? JSON.stringify(raw) : null;
-      } catch { }
-      if (g) {
-        const i = new Error("Checkout: " + g);
-        if (g.toLowerCase().includes("already paying")) i.noRetry = !![];
-        throw i;
-      }
-      throw new Error(
-        "Checkout failed: " +
-        d.status +
-        " " +
-        (f.length > 0xc8 ? f.substring(0x0, 0xc8) + "..." : f),
-      );
+      timeout: 30000
+    });
+    if (res.data?.status !== "success") {
+      throw new Error("Gagal mendapatkan link trial dari ErdogAI: " + (res.data?.message || JSON.stringify(res.data)));
     }
-    const e = d.data;
-    this.checkoutSessionId = e.checkout_session_id;
-    this.publishableKey = e.publishable_key || STRIPE_PK;
-    logger.success(this.tag + "Checkout ✓");
-    return e;
+    const d = res.data.data;
+    this.checkoutSessionId = d.checkout_session_id;
+    this.publishableKey = d.publishable_key || STRIPE_PK;
+    logger.success(this.tag + "Checkout ✓ (" + res.data.forwarded_to + ")");
+    return d;
   }
   async initStripeCheckout() {
     const a = new URLSearchParams();
@@ -1075,7 +1047,7 @@ class ChatGPTAutopay {
     const b =
       "https://checkout.stripe.com/c/pay/" +
       this.checkoutSessionId +
-      "?returned_from_redirect=true&ui_mode=custom&return_url=" +
+      "?returned_from_redirect=true&ui_mode=hosted&return_url=" +
       encodeURIComponent(
         BASE_CHATGPT +
         "/checkout/verify?stripe_session_id=" +
@@ -1083,95 +1055,31 @@ class ChatGPTAutopay {
         "&processor_entity=openai_llc&plan_type=plus",
       );
     const c = new URLSearchParams();
+    c.append("eid", "NA");
+    c.append("payment_method", this.paymentMethodId);
+    c.append("expected_amount", "0");
+    c.append("consent[terms_of_service]", "accepted");
+    c.append("expected_payment_method_type", "gopay");
+    c.append("return_url", b);
+    c.append("_stripe_version", "2020-08-27;custom_checkout_beta=v1");
     c.append("guid", uuidv4().replace(/-/g, "").substring(0x0, 0x24));
     c.append("muid", uuidv4().replace(/-/g, "").substring(0x0, 0x24));
     c.append("sid", uuidv4().replace(/-/g, "").substring(0x0, 0x24));
-    c.append("payment_method", this.paymentMethodId);
-    if (this.initChecksum) c.append("init_checksum", this.initChecksum);
-    c.append("expected_amount", "0");
-    c.append("expected_payment_method_type", "gopay");
-    c.append("return_url", b);
-    c.append(
-      "elements_session_client[client_betas][0]",
-      "custom_checkout_server_updates_1",
-    );
-    c.append(
-      "elements_session_client[client_betas][1]",
-      "custom_checkout_manual_approval_1",
-    );
-    c.append(
-      "elements_session_client[elements_init_source]",
-      "custom_checkout",
-    );
-    c.append("elements_session_client[referrer_host]", "chatgpt.com");
-    if (a?.session?.id) {
-      c.append("elements_session_client[session_id]", a.session.id);
+    c.append("key", this.publishableKey || STRIPE_PK);
+    c.append("version", "12427d159a"); // Dari curl
+    if (this.initChecksum) {
+      c.append("init_checksum", this.initChecksum);
     }
-    c.append("elements_session_client[stripe_js_id]", this.stripeJsId);
-    c.append("elements_session_client[locale]", "en");
-    c.append("elements_session_client[is_aggregation_expected]", "false");
-    c.append("elements_options_client[stripe_js_locale]", "auto");
-    c.append(
-      "elements_options_client[saved_payment_method][enable_save]",
-      "never",
-    );
-    c.append(
-      "elements_options_client[saved_payment_method][enable_redisplay]",
-      "never",
-    );
+    
+    // Attribution Metadata (wajib untuk hosted checkout via API)
     c.append("client_attribution_metadata[client_session_id]", this.stripeJsId);
-    c.append(
-      "client_attribution_metadata[checkout_session_id]",
-      this.checkoutSessionId,
-    );
-    c.append(
-      "client_attribution_metadata[merchant_integration_source]",
-      "checkout",
-    );
-    c.append(
-      "client_attribution_metadata[merchant_integration_version]",
-      "custom",
-    );
-    c.append(
-      "client_attribution_metadata[merchant_integration_subtype]",
-      "payment-element",
-    );
-    c.append(
-      "client_attribution_metadata[merchant_integration_additional_elements][0]",
-      "payment",
-    );
-    c.append(
-      "client_attribution_metadata[merchant_integration_additional_elements][1]",
-      "address",
-    );
-    c.append(
-      "client_attribution_metadata[payment_intent_creation_flow]",
-      "deferred",
-    );
-    c.append(
-      "client_attribution_metadata[payment_method_selection_flow]",
-      "automatic",
-    );
-    if (a?.session?.id) {
-      c.append(
-        "client_attribution_metadata[elements_session_id]",
-        a.session.id,
-      );
-    }
-    if (this.elementsSessionConfigId) {
-      c.append(
-        "client_attribution_metadata[elements_session_config_id]",
-        this.elementsSessionConfigId,
-      );
-    }
+    c.append("client_attribution_metadata[checkout_session_id]", this.checkoutSessionId);
+    c.append("client_attribution_metadata[merchant_integration_source]", "checkout");
+    c.append("client_attribution_metadata[merchant_integration_version]", "hosted_checkout");
+    c.append("client_attribution_metadata[payment_method_selection_flow]", "automatic");
     if (this.checkoutConfigId) {
-      c.append(
-        "client_attribution_metadata[checkout_config_id]",
-        this.checkoutConfigId,
-      );
+      c.append("client_attribution_metadata[checkout_config_id]", this.checkoutConfigId);
     }
-    c.append("key", this.publishableKey);
-    c.append("_stripe_version", STRIPE_VERSION);
     const d = await this.stripeClient.post(
       STRIPE_API + "/v1/payment_pages/" + this.checkoutSessionId + "/confirm",
       c.toString(),
@@ -2017,19 +1925,37 @@ class ChatGPTAutopay {
     return c.data;
   }
   async checkSubscriptionStatus() {
-    for (let i = 0; i < 3; i++) {
-      if (i > 0) await sleep(2000);
+    for (let i = 0; i < 10; i++) {
+      if (i > 0) await sleep(3000);
+      
+      // Hit endpoint profil akun secara langsung untuk memastikan status "Plus"
       const a = await this._oaiGet(
-        BASE_CHATGPT +
-        "/backend-api/payments/checkout/openai_llc/" +
-        this.checkoutSessionId,
+        BASE_CHATGPT + "/backend-api/accounts/check/v4-2023-04-27"
       );
-      if (a.data?.payment_status === "paid" && a.data?.status === "complete") {
-        logger.success(this.tag + "Subscription: " + a.data.plan_name + " ✓");
-        return !![];
+      
+      // Endpoint ini mengembalikan object accounts. Jika berhasil Plus, account.plan_type = 'plus'
+      if (a.data && a.data.accounts) {
+        let hasPlus = false;
+        let planName = "Unknown";
+        
+        for (const accountId in a.data.accounts) {
+          const acc = a.data.accounts[accountId];
+          if (acc.account && acc.account.plan_type === "plus") {
+            hasPlus = true;
+            planName = "ChatGPT Plus";
+            break;
+          }
+        }
+        
+        if (hasPlus) {
+          logger.success(this.tag + "Subscription: " + planName + " ✓ (Account Verified)");
+          return true;
+        }
       }
+      
+      logger.debug(this.tag + `Polling account status... (${i+1}/10)`);
     }
-    return ![];
+    return false;
   }
   async runAutopay() {
     try {
@@ -2097,11 +2023,54 @@ class ChatGPTAutopay {
         await this.verifyCheckout();
       } else {
         await this.getMidtransTransaction();
-        logger.info(this.tag + "Hubungkan GoPay (+62" + this.gopayPhone + ")...");
-        const f = await this.linkGoPay();
-        await this.gopayAuthorize(f);
-        logger.info(this.tag + "Verifikasi GoPay...");
-        await this.handleGoPayOtpAndPin();
+
+        let otpSuccess = false;
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        while (!otpSuccess && retryCount < maxRetries) {
+          if (!this.gopayPhone && typeof this.onAcquireGopay === 'function') {
+            const slot = await this.onAcquireGopay();
+            if (slot) {
+              this.gopayPhone = slot.phone;
+              this.gopayPin = slot.pin;
+              this.serverNumber = String(slot.id);
+              this.webhookAction = slot.webhook_action;
+              logger.success(this.tag + `[Pool] Berhasil mengunci Slot #${this.serverNumber} (${this.gopayPhone})`);
+            } else {
+              throw new Error("Gagal mengunci slot GoPay dari server OTP.");
+            }
+          }
+
+          if (!this.gopayPhone) {
+            throw new Error("Data GoPay tidak tersedia (Pool kosong).");
+          }
+
+          logger.info(this.tag + "Hubungkan GoPay (+62" + this.gopayPhone + ")...");
+          try {
+            const f = await this.linkGoPay();
+            await this.gopayAuthorize(f);
+            logger.info(this.tag + "Verifikasi GoPay...");
+            await this.handleGoPayOtpAndPin();
+            otpSuccess = true;
+          } catch (gopayErr) {
+            const msg = gopayErr.message || "";
+            if (msg.includes("OTP") || msg.includes("Timeout") || msg.includes("Failed to connect GoPay") || msg.includes("Invalid verification code")) {
+              logger.warn(this.tag + `GoPay OTP/Link gagal: ${msg}. Merilis slot #${this.serverNumber} dan rotasi...`);
+              if (typeof this.onReleaseGopay === 'function') {
+                await this.onReleaseGopay(this.serverNumber);
+              }
+              this.gopayPhone = null; // kosongkan agar dipinjam yang baru di loop berikutnya
+              retryCount++;
+              if (retryCount >= maxRetries) {
+                throw new Error("Gagal menghubungkan GoPay setelah " + maxRetries + " kali percobaan.");
+              }
+              await sleep(2000);
+            } else {
+              throw gopayErr;
+            }
+          }
+        }
         await sleep(0x1388);
         logger.info(this.tag + "Proses pembayaran GoPay...");
         const g = await this.chargeGoPay();
