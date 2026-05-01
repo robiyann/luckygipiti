@@ -522,6 +522,13 @@ function initTelegram() {
             }
 
             const data = query.data;
+            const state = getUserState(chatId);
+
+            // Mencegah bug bot macet: jika bot sedang menunggu ketikan (input), abaikan pencetan tombol (kecuali tombol Cancel)
+            if (state.activePromptResolve && data !== 'cancel_process') {
+                bot.answerCallbackQuery(query.id, { text: "⚠️ Selesaikan input ketikan Anda terlebih dahulu, atau tekan Cancel.", show_alert: true }).catch(() => {});
+                return;
+            }
 
             // ---
 
