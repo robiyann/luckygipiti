@@ -390,31 +390,45 @@ async function runSignupViaAPI(
       Referer: AUTH_BASE + "/email-verification",
     });
     k?.("OTP:\x20waiting...");
-    const M = await j?.();
-    if (!M)
-      return { success: ![], step: "otp", error: "OTP\x20not\x20received" };
-    k?.("OTP\x20✓\x20(" + M + ")");
-    const N = await n["post"](
-      AUTH_BASE + "/api/accounts/email-otp/validate",
-      { code: M["toString"]() },
-      {
-        "Content-Type": "application/json",
-        Origin: AUTH_BASE,
-        Referer: AUTH_BASE + "/email-verification",
-        "sec-fetch-site": "same-origin",
-      },
-    );
-    if (N["status"] !== 0xc8) {
-      let ae;
-      try {
-        ae = await N["json"]();
-      } catch { }
-      return {
-        success: ![],
-        step: "otp_validate",
-        status: N["status"],
-        data: ae,
-      };
+    let N;
+    let otpSuccess = false;
+    for (let otpRetry = 0; otpRetry < 3; otpRetry++) {
+      const M = await j?.();
+      if (!M) return { success: ![], step: "otp", error: "OTP\x20not\x20received" };
+      k?.("OTP\x20✓\x20(" + M + ")" + (otpRetry > 0 ? " [Retry " + otpRetry + "]" : ""));
+      
+      N = await n["post"](
+        AUTH_BASE + "/api/accounts/email-otp/validate",
+        { code: M["toString"]() },
+        {
+          "Content-Type": "application/json",
+          Origin: AUTH_BASE,
+          Referer: AUTH_BASE + "/email-verification",
+          "sec-fetch-site": "same-origin",
+        },
+      );
+
+      if (N["status"] === 0xc8) {
+        otpSuccess = true;
+        break;
+      }
+
+      let errorData;
+      try { errorData = await N["json"](); } catch (e) {}
+      const errorStr = errorData?.detail || errorData?.message || "Wrong code";
+      
+      if (otpRetry < 2) {
+        k?.("OTP Salah: " + errorStr + ". Mencoba lagi...");
+        // Beri jeda sedikit sebelum retry fetch
+        await new Promise(r => setTimeout(r, 2000));
+      } else {
+        return {
+          success: ![],
+          step: "otp_validate",
+          status: N["status"],
+          data: errorData,
+        };
+      }
     }
     k?.("Finalizing...");
     let O = null;
