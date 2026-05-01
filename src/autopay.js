@@ -2059,8 +2059,11 @@ class ChatGPTAutopay {
             otpSuccess = true;
           } catch (gopayErr) {
             const msg = gopayErr.message || "";
-            if (msg.includes("OTP") || msg.includes("Timeout") || msg.includes("Failed to connect GoPay") || msg.includes("Invalid verification code")) {
-              logger.warn(this.tag + `GoPay OTP/Link gagal: ${msg}. Merilis slot #${this.serverNumber} dan rotasi...`);
+            const isNetworkError = msg.includes("socket disconnected") || msg.includes("ECONNRESET") || msg.includes("socket hang up");
+            const isOtpError = msg.includes("OTP") || msg.includes("Timeout") || msg.includes("Failed to connect GoPay") || msg.includes("Invalid verification code");
+            
+            if (isOtpError || isNetworkError) {
+              logger.warn(this.tag + `GoPay Link/Network gagal: ${msg}. Merilis slot #${this.serverNumber} dan rotasi...`);
               if (typeof this.onReleaseGopay === 'function') {
                 await this.onReleaseGopay(this.serverNumber);
               }

@@ -83,7 +83,7 @@ function createClient(a) {
     timeout: 0x7530,
   };
   if (a) {
-    const g = new HttpsProxyAgent(a);
+    const g = new HttpsProxyAgent(a, { keepAlive: true, scheduling: 'lifo' });
     e["httpsAgent"] = g;
     e["httpAgent"] = g;
     e["proxy"] = ![];
