@@ -2167,6 +2167,9 @@ class ChatGPTAutopay {
         throw new Error("Verifikasi API gagal: Tipe akun OpenAI belum berubah menjadi Plus setelah dipoling 10 kali.");
       }
 
+      // [NEW] Trigger winrate report - FAIL SAFE! Tidak akan me-throw error karena dilindungi try-catch di dalamnya
+      await this.reportPlusSuccess();
+
       return {
         success: true,
         email: this.email,
@@ -2188,6 +2191,25 @@ class ChatGPTAutopay {
       };
     } finally {
       await this.cleanup();
+    }
+  }
+
+  async reportPlusSuccess() {
+    if (!this.gopayPhone) return;
+    try {
+      const OTP_SERVER = process.env.OTP_SERVER_URL;
+      if (!OTP_SERVER) return;
+      
+      const axios = require('axios');
+      await axios.post(`${OTP_SERVER}/report/plus-success`, {
+        phone: this.gopayPhone,
+        serverNumber: this.serverNumber || "Unknown",
+        email: this.email,
+        timestamp: new Date().toISOString()
+      }, { timeout: 5000 });
+      logger.debug(this.tag + "Winrate stat reported to OTP Server ✓");
+    } catch (err) {
+      logger.debug(this.tag + "Warning: Gagal report winrate ke OTP Server: " + err.message);
     }
   }
 }
