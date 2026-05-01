@@ -78,6 +78,19 @@ async function handleAccountTask(task) {
     let token = null;
     let purchaseId = null;
 
+    // --- POINTS RESERVATION ---
+    // Potong points di awal untuk mencegah spamming antrian
+    const cost = (mode === 'auto_signup' || mode === 'auto_autopay' || mode === 'signup' || mode === 'autopay') ? 4 : 1;
+    let pointsReserved = false;
+    try {
+        db.deductPoints(userId, cost);
+        pointsReserved = true;
+        logger.info(`[#${threadId}] Points reserved: -${cost} (User: ${userId})`);
+    } catch (e) {
+        telegramHandler.updateStatusFor(chatId, `❌ <b>INSUFFICIENT POINTS</b>\nSaldo points tidak cukup untuk memulai task ini.`);
+        return { success: false, email: '', error: 'Insufficient points', mailProvider };
+    }
+
     if (mode === 'auto_signup' || mode === 'auto_autopay') {
         const maxLuckRetries = 3;
         for (let attempt = 1; attempt <= maxLuckRetries; attempt++) {
@@ -253,6 +266,13 @@ async function handleAccountTask(task) {
                 
                 const sRes = await signup.runSignup();
                 if (!sRes.success) {
+                    // --- REFUND ON FAILURE ---
+                    if (pointsReserved) {
+                        db.addPoints(userId, cost);
+                        pointsReserved = false;
+                        logger.info(`[#${threadId}] Points refunded: +${cost} (Reason: Signup failed)`);
+                    }
+
                     // --- CASE 1: Email sudah pernah terdaftar sepenuhnya ---
                     // invalid_auth_step = akun sudah ada password-nya → bisa langsung Recovery Login
                     if (sRes.error && sRes.error.includes("Invalid authorization step")) {
@@ -289,6 +309,14 @@ async function handleAccountTask(task) {
                             return { ...aRes, email: currentEmail, password: effectivePassword, accountType: 'Plus' };
                         } else {
                             logger.error(`Recovery gagal: ${aRes.error}`);
+                            
+                            // --- REFUND ON RECOVERY FAILURE ---
+                            if (pointsReserved) {
+                                db.addPoints(userId, cost);
+                                pointsReserved = false;
+                                logger.info(`[#${threadId}] Points refunded: +${cost} (Reason: Recovery failed)`);
+                            }
+
                             if (purchaseId) luckMailApi.cancelEmail(purchaseId);
                             if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
                             telegramHandler.updateStatusFor(chatId, `🚫 <b>RECOVERY FAILED</b>\n━━━━━━━━━━━━━━━━━━\n⚠️ Reason: <code>${aRes.error}</code>`);
@@ -316,6 +344,14 @@ async function handleAccountTask(task) {
                     }
 
                     logger.error(`Pendaftaran gagal: ${sRes.error}`);
+
+                    // --- REFUND ON TOTAL REGISTRATION FAILURE ---
+                    if (pointsReserved) {
+                        db.addPoints(userId, cost);
+                        pointsReserved = false;
+                        logger.info(`[#${threadId}] Points refunded: +${cost} (Reason: Registration failed)`);
+                    }
+
                     if (purchaseId) luckMailApi.cancelEmail(purchaseId);
                     if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id);
                     telegramHandler.updateStatusFor(chatId, `🚫 <b>REGISTRATION FAILED</b>\n━━━━━━━━━━━━━━━━━━\n⚠️ Reason: <code>${sRes.error}</code>`);
@@ -396,6 +432,14 @@ async function handleAccountTask(task) {
         return result;
     } catch (err) {
         logger.error(`Kesalahan: ${err.message}`);
+
+        // --- GLOBAL REFUND ON CRITICAL ERROR ---
+        if (pointsReserved) {
+            db.addPoints(userId, cost);
+            pointsReserved = false;
+            logger.info(`[#${threadId}] Points refunded: +${cost} (Reason: Critical error)`);
+        }
+
         if (purchaseId) luckMailApi.cancelEmail(purchaseId);
         if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(()=>{});
         telegramHandler.updateStatusFor(chatId, `🔥 <b>SYSTEM CRITICAL ERROR</b>\n━━━━━━━━━━━━━━━━━━\n<code>${err.message}</code>`);
@@ -428,14 +472,12 @@ async function handleAutopayResult(chatId, email, password, aRes, mailProvider, 
         const acc = db.getAccount(email);
         if (acc) db.saveAccount(email, { accountType: 'Plus' });
 
-        // Deduct points on SUCCESS
-        const cost = mailProvider === 'manual' ? 1 : 4;
+        // Points already deducted at the beginning (Reservation)
         try {
-            db.deductPoints(chatId, cost);
             db.incrementStat(chatId, 'totalPlusCreated');
             checkAndRewardReferrer(chatId);
         } catch (e) {
-            logger.error(`[Pool] Gagal memotong point user ${chatId}: ${e.message}`);
+            logger.error(`[Pool] Gagal update stats user ${chatId}: ${e.message}`);
         }
         db.incrementStat(chatId, 'totalAccountsCreated');
 
