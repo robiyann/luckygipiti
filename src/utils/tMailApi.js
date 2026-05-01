@@ -78,8 +78,29 @@ async function generateEmail(baseUrl, apiKey, preferredDomains) {
 }
 
 /**
+ * Pre-check inbox T-Mail sebelum pendaftaran dimulai.
+ * Jika sudah ada OTP di inbox (untuk email recycled), simpan ke cache agar di-ignore nanti.
+ */
+async function prewarmOtpCache(token, email, baseUrl) {
+    try {
+        const apiClient = createApiClient(baseUrl);
+        const urlPath = `/api/mailboxes/token/${encodeURIComponent(token)}/otp?service=openai`;
+        const response = await apiClient.get(urlPath);
+        if (response.data && response.data.otp) {
+            const existingOtp = String(response.data.otp);
+            db.saveOtpCache(email, existingOtp);
+            logger.info(`[T-Mail] Pre-warm: OTP ${existingOtp} ditemukan di inbox ${email}. Kode ini akan di-ignore.`);
+            return existingOtp;
+        }
+    } catch (e) {
+        // Abaikan error (biasanya 404 jika inbox kosong)
+    }
+    return null;
+}
+
+/**
  * Polling OTP dari T-MAIL API menggunakan endpoint /token/:token/otp?service=openai.
- * Poll setiap 2 detik, maksimal 10 kali (20 detik).
+ * Poll setiap 3 detik, maksimal 15 kali.
  * Menggunakan OTP cache agar tidak mengembalikan kode lama.
  *
  * @param {string} token - Token untuk akses mail
@@ -88,8 +109,8 @@ async function generateEmail(baseUrl, apiKey, preferredDomains) {
  * @returns {Promise<string|null>}
  */
 async function fetchVerificationCode(token, email, baseUrl) {
-    const maxRetries = 15;  // 15 × 2s = 30 detik (OTP OpenAI biasanya masuk dalam 5-10 detik)
-    const delayMs = 2000;
+    const maxRetries = 15;
+    const delayMs = 3000;
     const lastOtp = db.getOtpCache(email);
 
     logger.info(`[T-Mail] Memulai polling OTP untuk ${email} via token...`);

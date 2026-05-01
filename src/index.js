@@ -246,6 +246,8 @@ async function handleAccountTask(task) {
                 // langsung blacklist ke cache agar tidak terbaca saat validasi OTP dari OpenAI.
                 if (mailProvider === 'luckmail' && token && userData.luckMailApiKey) {
                     await luckMailApi.prewarmOtpCache(token, currentEmail, userData.luckMailApiKey);
+                } else if (mailProvider === 'tmail' && token) {
+                    await tMailApi.prewarmOtpCache(token, currentEmail, tmailBaseUrl);
                 }
                 
                 const sRes = await signup.runSignup();
