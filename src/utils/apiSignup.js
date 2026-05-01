@@ -386,6 +386,9 @@ async function runSignupViaAPI(
       return { success: ![], step: "register", status: K, error: "" + ac };
     }
     k?.("Register\x20✓");
+    await n["get"](AUTH_BASE + "/api/accounts/email-otp/send", {
+      Referer: AUTH_BASE + "/email-verification",
+    });
     k?.("OTP:\x20waiting...");
     let N;
     let otpSuccess = false;
