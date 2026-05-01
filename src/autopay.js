@@ -331,7 +331,10 @@ class ChatGPTAutopay {
     const { client: d, jar: e } = createClient(sgpProxy);
     this.stripeClient = d;
     this.stripeJar = e;
-    const { client: f, jar: g } = createClient(sgpProxy);
+    
+    // Midtrans menggunakan General Proxy (DataImpulse) karena SGP (SwiftProxy) kena blok 502 WAF Midtrans.
+    const generalProxy = process.env.GENERAL_PROXY_URL || this.proxyUrl;
+    const { client: f, jar: g } = createClient(generalProxy);
     this.midtransClient = f;
     this.midtransJar = g;
     this.checkoutSessionId = null;
@@ -1462,7 +1465,8 @@ class ChatGPTAutopay {
       throw new Error("[GoPay] Stripe redirect URL not found after polling");
     }
     logger.debug(this.tag + "Following Stripe redirect...");
-    const j = await this.midtransClient.get(b, {
+    // Gunakan stripeClient (SGP proxy) untuk hit hooks.stripe.com karena DataImpulse (General Proxy) memblokirnya.
+    const j = await this.stripeClient.get(b, {
       maxRedirects: 0x0,
       validateStatus: (T) => T < 0x1f4,
       headers: {
