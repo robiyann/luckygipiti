@@ -153,10 +153,6 @@ async function handleAccountTask(task) {
     if (mode.startsWith('auto_')) {
         otpFnProxy = async () => {
             logger.info(`[#${threadId}] Waiting for OTP from ${isTMail ? 'T-Mail' : 'LuckMail'} for ${currentEmail}...`);
-            // Delay sebelum fetch: beri waktu OpenAI mengirim email OTP ke inbox.
-            // Di batch mode (50 thread), 8 detik lebih aman karena ada latency 
-            // di mail server LuckMail saat menerima banyak email sekaligus.
-            await new Promise(r => setTimeout(r, 8000));
             let code;
             if (isTMail) {
                 code = await tMailApi.fetchVerificationCode(token, currentEmail, tmailBaseUrl);
