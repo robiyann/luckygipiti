@@ -243,10 +243,20 @@ async function handleAccountTask(task) {
                 
                 const sRes = await signup.runSignup();
                 if (!sRes.success) {
-                    // --- RECOVERY LOGIC: Jika email sudah terdaftar, coba tembus via alur Login ---
-                    if (sRes.error && sRes.error.includes("Invalid authorization step")) {
-                        logger.info(this.tag + "Recovery: Email sudah terdaftar. Mencoba alur login untuk menyelesaikan pendaftaran...");
-                        telegramHandler.updateStatusFor(chatId, `🔄 <b>Recovery Mode...</b>\n<i>Email sudah terdaftar, mencoba login & verifikasi...</i>`);
+                    // --- RECOVERY LOGIC ---
+                    // Trigger jika: (1) email sudah terdaftar (invalid_auth_step), 
+                    // atau (2) Register berhasil tapi OTP gagal/timeout (REGISTER_DONE_OTP_FAILED)
+                    // → Keduanya harus diselesaikan via alur Login, bukan Register ulang!
+                    const isRecoverable = sRes.error && (
+                        sRes.error.includes("Invalid authorization step") ||
+                        sRes.error === "REGISTER_DONE_OTP_FAILED"
+                    );
+                    if (isRecoverable) {
+                        const recoveryReason = sRes.error === "REGISTER_DONE_OTP_FAILED"
+                            ? "Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang..."
+                            : "Email sudah terdaftar. Mencoba alur login...";
+                        logger.info(`[#${threadId}] Recovery: ${recoveryReason}`);
+                        telegramHandler.updateStatusFor(chatId, `🔄 <b>Recovery Mode...</b>\n<i>${recoveryReason}</i>`);
                         
                         const autopay = new ChatGPTAutopay({
                             email: currentEmail, password: effectivePassword, name, 

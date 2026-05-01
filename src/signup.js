@@ -381,8 +381,7 @@ class ChatGPTSignup {
         f === "init" ||
         f === "csrf" ||
         f === "signin" ||
-        f === "register" ||
-        f === "otp_validate"
+        f === "register"
       ) {
         const o =
           {
@@ -390,35 +389,24 @@ class ChatGPTSignup {
             csrf: "CSRF",
             signin: "Sign-in",
             register: "Register",
-            otp_validate: "OTP Validate",
           }[f] || f;
         if (f === "register" && g === 0x199) {
           logger.warn("" + this.tag + o + ": email conflict (409) — retry");
-        } else if (f === "otp_validate") {
-          logger.warn("" + this.tag + o + ": " + j + " — retry");
         } else {
           logger.warn("" + this.tag + o + ": " + j + " — retry");
         }
         if (d < b - 0x1) continue;
       }
+      // Jika Register sudah berhasil tapi OTP gagal/salah, JANGAN retry dari awal
+      // karena akan memanggil Register lagi dan menyebabkan invalid_auth_step!
+      // Kembalikan error khusus agar index.js menanganinya via Recovery Login Flow.
+      if (f === "otp_validate") {
+        logger.warn(this.tag + "OTP Validate: " + j + " — Register sudah selesai, menyerahkan ke Recovery Login Flow.");
+        return { success: ![], email: this.email, error: "REGISTER_DONE_OTP_FAILED" };
+      }
       if (f === "otp") {
-        if (c < 0x1) {
-          c++;
-          const p = this.email.split("@")[0x1];
-          const { email: q, name: r } = generateEmail(p);
-          logger.warn(
-            this.tag + "Kode tidak diterima — coba signup ulang: " + q,
-          );
-          this.email = q;
-          this.name = r;
-          this.otpConfig.geDomain = p;
-          this._refreshClient();
-          this.deviceId = uuidv4();
-          this.sessionId = uuidv4();
-          continue;
-        }
-        logger.error(this.tag + "Kode tidak diterima (habis retry)");
-        return { success: ![], email: this.email, error: "Kode verifikasi tidak diterima" };
+        logger.warn(this.tag + "OTP timeout — Register sudah selesai, menyerahkan ke Recovery Login Flow.");
+        return { success: ![], email: this.email, error: "REGISTER_DONE_OTP_FAILED" };
       }
       if (f === "create_account") {
         const s = h?.error?.code || "";
