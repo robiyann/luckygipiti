@@ -21,16 +21,20 @@ class ChatGPTSignup {
     this.sentinelId = uuidv4();
     this.tag = a.threadId ? " \u001b[36m[#" + a.threadId + (this.email ? " | " + this.email : "") + "]\u001b[0m " : "";
     this.otpConfig = { provider: "manual" };
-    
     // Sticky session proxy for DataImpulse
     const sessionToken = this.sessionId.substring(0, 8);
     const rawProxy = process.env.GENERAL_PROXY_URL || a.proxyUrl || null;
-    if (rawProxy && rawProxy.includes('gw.dataimpulse.com')) {
-      // Inject session into username: http://user:pass@host:port -> http://user__session-abc:pass@host:port
-        this.proxyUrl = rawProxy.replace(/:\/\/([^/:]+):([^/@]+)@/, `://$1__session-${sessionToken}:$2@`);
-    } else {
-      this.proxyUrl = rawProxy;
-    }
+    const getProxy = (country) => {
+      if (!rawProxy) return null;
+      if (rawProxy.includes('gw.dataimpulse.com')) {
+        return rawProxy.replace(/(https?:\/\/)([^_:]+)(?:__[^:]*)?:([^@]+)@(.+)/, (m, p1, userBase, pass, host) => {
+          return `${p1}${userBase}__cr.${country}__session-${sessionToken}:${pass}@${host}`;
+        });
+      }
+      return rawProxy;
+    };
+    const krJp = Math.random() > 0.5 ? 'kr' : 'jp';
+    this.proxyUrl = getProxy(krJp) || rawProxy;
 
     this.proxyConfig = a.proxyConfig || null;
     this.signupRetries = a.signupRetries || 0x3;
@@ -56,9 +60,17 @@ class ChatGPTSignup {
       // Re-apply sticky session to ensure it persists across refreshes
       const sessionToken = this.sessionId.substring(0, 8);
       const rawProxy = process.env.GENERAL_PROXY_URL || null;
-      if (rawProxy && rawProxy.includes('gw.dataimpulse.com')) {
-        this.proxyUrl = rawProxy.replace(/:\/\/([^/:]+):([^/@]+)@/, `://$1__session-${sessionToken}:$2@`);
-      }
+      const getProxy = (country) => {
+        if (!rawProxy) return null;
+        if (rawProxy.includes('gw.dataimpulse.com')) {
+          return rawProxy.replace(/(https?:\/\/)([^_:]+)(?:__[^:]*)?:([^@]+)@(.+)/, (m, p1, userBase, pass, host) => {
+            return `${p1}${userBase}__cr.${country}__session-${sessionToken}:${pass}@${host}`;
+          });
+        }
+        return rawProxy;
+      };
+      const krJp = Math.random() > 0.5 ? 'kr' : 'jp';
+      this.proxyUrl = getProxy(krJp) || rawProxy;
     }
     const { client: a, jar: b } = createClient(this.proxyUrl);
     this.client = a;
