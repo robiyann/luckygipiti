@@ -333,7 +333,7 @@ class ChatGPTAutopay {
     this.stripeJar = e;
     
     // Midtrans menggunakan General Proxy (DataImpulse) karena SGP (SwiftProxy) kena blok 502 WAF Midtrans.
-    const generalProxy = process.env.GENERAL_PROXY_URL || this.proxyUrl;
+    const generalProxy = this.proxyUrl || process.env.GENERAL_PROXY_URL;
     const { client: f, jar: g } = createClient(generalProxy);
     this.midtransClient = f;
     this.midtransJar = g;
