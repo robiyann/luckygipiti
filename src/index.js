@@ -305,7 +305,8 @@ async function handleAccountTask(task) {
                         const aRes = await autopay.runAutopay();
                         if (aRes.success) {
                             if (activeSlot) await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
-                            await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, activeSlot ? activeSlot.phone : "Unknown", activeSlot ? activeSlot.id : "1");
+                            await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, activeSlot ? activeSlot.phone : "Unknown", activeSlot ? activeSlot.id : "1", { pointsReserved, cost, userId });
+                            pointsReserved = false;
                             return { ...aRes, email: currentEmail, password: effectivePassword, accountType: 'Plus' };
                         } else {
                             logger.error(`Recovery gagal: ${aRes.error}`);
@@ -329,6 +330,14 @@ async function handleAccountTask(task) {
                     // Simpan sebagai Free, user bisa Retry Pay setelah OTP tersedia.
                     if (sRes.error === "REGISTER_DONE_OTP_FAILED") {
                         logger.warn(`[#${threadId}] Register OK tapi OTP timeout. Menyimpan sebagai akun Free — user bisa Retry Pay.`);
+                        
+                        // --- REFUND BECAUSE IT'S ONLY FREE ---
+                        if (pointsReserved) {
+                            db.addPoints(userId, cost);
+                            pointsReserved = false;
+                            logger.info(`[#${threadId}] Points refunded: +${cost} (Reason: Only Free account created)`);
+                        }
+
                         db.saveAccount(currentEmail, { userId, password: effectivePassword, accountType: 'Free', accessToken: null });
                         db.incrementStat(chatId, 'totalAccountsCreated');
                         telegramHandler.updateStatusFor(chatId,
@@ -406,7 +415,8 @@ async function handleAccountTask(task) {
                         await releaseGopaySlot(otpServerUrl, activeSlot.id).catch(() => {});
                     }
 
-                    await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, activeSlot ? activeSlot.phone : "Unknown", activeSlot ? activeSlot.id : "1");
+                    await handleAutopayResult(chatId, currentEmail, effectivePassword, aRes, mailProvider, activeSlot ? activeSlot.phone : "Unknown", activeSlot ? activeSlot.id : "1", { pointsReserved, cost, userId });
+                    pointsReserved = false; // Mark as handled
                     // Ekstrak refresh token dari cookie jar jika ada
                     let refreshToken = null;
                     if (aRes.cookies) {
@@ -452,8 +462,9 @@ async function handleAccountTask(task) {
     }
 }
 
-async function handleAutopayResult(chatId, email, password, aRes, mailProvider, gopayPhone, serverNumber) {
+async function handleAutopayResult(chatId, email, password, aRes, mailProvider, gopayPhone, serverNumber, reservation) {
     const state = telegramHandler.getUserState(chatId);
+    const { pointsReserved, cost, userId } = reservation || {};
     
     // Referral Bonus Function
     const checkAndRewardReferrer = (userId) => {
@@ -501,6 +512,12 @@ async function handleAutopayResult(chatId, email, password, aRes, mailProvider, 
         );
     } else {
         logger.warn(`Autopay gagal: ${aRes.error}`);
+
+        // --- REFUND ON PAYMENT FAILURE (NO PLUS = NO PAY) ---
+        if (pointsReserved) {
+            db.addPoints(userId, cost);
+            logger.info(`[Pool] Points refunded to ${userId}: +${cost} (Reason: Payment failed)`);
+        }
         // Store account as Free if it doesn't exist
         const acc = db.getAccount(email);
         if (!acc) db.saveAccount(email, { password, accountType: 'Free' });
