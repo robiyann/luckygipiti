@@ -2115,7 +2115,7 @@ class ChatGPTAutopay {
           stripeErr = e;
           const errMsg = e.message || '';
           // Cek apakah ini error terkait proxy / upstream
-          const isProxyError = errMsg.includes('SG no upstream') || errMsg.includes('405') || errMsg.includes('502') || errMsg.includes('503') || errMsg.includes('timeout') || errMsg.includes('socket') || errMsg.includes('ECONN');
+          const isProxyError = errMsg.includes('SG no upstream') || errMsg.includes('405') || errMsg.includes('502') || errMsg.includes('503') || errMsg.includes('timeout') || errMsg.includes('socket') || errMsg.includes('ECONN') || errMsg.includes('407');
           
           if (isProxyError && _st < 4) {
             const usingMode = _st < 2 ? 'Proxy SGP' : 'IP Local';
