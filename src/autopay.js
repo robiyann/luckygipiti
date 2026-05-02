@@ -695,7 +695,9 @@ class ChatGPTAutopay {
               } else {
                 manualCode = await askTelegram("Masukkan kode verifikasi: ", this.tag);
               }
-            } catch { }
+            } catch (err) {
+                logger.debug(this.tag + "Sesi: OTP fetch error (bisa karena timeout): " + err.message);
+            }
             if (!manualCode) { 
                 logger.warn(this.tag + "Sesi: Kode kosong, coba lagi..."); 
                 continue; 

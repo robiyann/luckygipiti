@@ -9,7 +9,7 @@ function createApiClient(baseUrl) {
     const opts = {
         baseURL: (baseUrl || DEFAULT_BASE_URL).replace(/\/$/, ''),
         headers: { 'Content-Type': 'application/json' },
-        timeout: 15000
+        timeout: 5000 // Batasi request max 5 detik agar tidak nge-hang
     };
     if (proxyUrl) {
         const { HttpsProxyAgent } = require('https-proxy-agent');

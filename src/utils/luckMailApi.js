@@ -15,7 +15,8 @@ function createApiClient(apiKey) {
         headers: {
             'X-API-Key': apiKey,
             'Content-Type': 'application/json'
-        }
+        },
+        timeout: 5000 // Batasi request max 5 detik agar tidak nge-hang
     };
 
     const proxyUrl = process.env.GENERAL_PROXY_URL;
