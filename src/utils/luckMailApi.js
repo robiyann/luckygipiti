@@ -33,9 +33,10 @@ function createApiClient(apiKey) {
  * Membeli slot email baru dari LuckMail
  * @param {string} apiKey - API Key LuckMail dari user
  * @param {string[]} domains - Array domain yang dikonfigurasi user
+ * @param {string} [emailType] - Tipe email yang dipilih user (ms_graph/ms_imap/self_built/google_variant)
  * @returns {Promise<{orderId: string, email: string}>}
  */
-async function purchaseEmail(apiKey, domains) {
+async function purchaseEmail(apiKey, domains, emailType) {
     try {
         if (!apiKey) {
             throw new Error("No LuckMail API key configured. Go to ⚙️ My Settings to add yours.");
@@ -44,12 +45,16 @@ async function purchaseEmail(apiKey, domains) {
         // Pilih domain secara acak dari yang diset user, fallback ke allowed domains
         const validDomains = (domains && domains.length > 0) ? domains : ALLOWED_DOMAINS;
         const randomDomain = validDomains[Math.floor(Math.random() * validDomains.length)];
-        logger.info(`[LuckMail] Menyiapkan pembelian email dengan domain: ${randomDomain}`);
+
+        // Gunakan email_type dari setting user, fallback ke ms_imap
+        const ALLOWED_TYPES = ['ms_graph', 'ms_imap', 'self_built', 'google_variant'];
+        const resolvedType = (emailType && ALLOWED_TYPES.includes(emailType)) ? emailType : 'ms_imap';
+        logger.info(`[LuckMail] Menyiapkan pembelian email | domain: ${randomDomain} | type: ${resolvedType}`);
 
         const apiClient = createApiClient(apiKey);
         const response = await apiClient.post('/email/purchase', {
             project_code: "openai",
-            email_type: "ms_graph",
+            email_type: resolvedType,
             domain: randomDomain,
             quantity: 1,
             variant_mode: ""

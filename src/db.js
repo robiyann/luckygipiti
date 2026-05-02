@@ -30,7 +30,9 @@ try {
             tmailBaseUrl TEXT,
             tmailApiKey TEXT,
             luckMailApiKey TEXT,
-            luckMailDomains TEXT
+            luckMailDomains TEXT,
+            tmailLuckyousDomain TEXT,
+            tmailLuckyousType TEXT
         );
 
         CREATE TABLE IF NOT EXISTS accounts (
@@ -57,11 +59,19 @@ try {
         );
     `);
 
-    // Runtime migration: tambah kolom tmailDomains kalau belum ada
+    // Runtime migration: tambah kolom-kolom baru kalau belum ada
     const existingCols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
     if (!existingCols.includes('tmailDomains')) {
         db.prepare("ALTER TABLE users ADD COLUMN tmailDomains TEXT").run();
         logger.info('[DB] Kolom tmailDomains ditambahkan ke tabel users.');
+    }
+    if (!existingCols.includes('tmailLuckyousDomain')) {
+        db.prepare("ALTER TABLE users ADD COLUMN tmailLuckyousDomain TEXT").run();
+        logger.info('[DB] Kolom tmailLuckyousDomain ditambahkan ke tabel users.');
+    }
+    if (!existingCols.includes('tmailLuckyousType')) {
+        db.prepare("ALTER TABLE users ADD COLUMN tmailLuckyousType TEXT").run();
+        logger.info('[DB] Kolom tmailLuckyousType ditambahkan ke tabel users.');
     }
 } catch (e) {
     logger.error("[DB] Failed to open db.sqlite: " + e.message);
@@ -153,7 +163,8 @@ function saveUser(userId, data) {
     const allowedKeys = new Set([
         'status', 'firstName', 'registeredAt', 'points', 'referralCode', 'referredBy', 'referralRewarded',
         'totalAccountsCreated', 'totalPlusCreated', 'totalReferralsEarned', 'maxThreads', 'passwordMode',
-        'staticPassword', 'reportFormat', 'tmailBaseUrl', 'tmailApiKey', 'tmailDomains', 'luckMailApiKey', 'luckMailDomains'
+        'staticPassword', 'reportFormat', 'tmailBaseUrl', 'tmailApiKey', 'tmailDomains', 'luckMailApiKey', 'luckMailDomains',
+        'tmailLuckyousDomain', 'tmailLuckyousType'
     ]);
 
     const updates = [];

@@ -111,8 +111,19 @@ async function handleAccountTask(task) {
                     purchase = await tMailApi.generateEmail(tmailBaseUrl, userData.tmailApiKey, preferredDomains);
                     purchase.purchaseId = null;
                 } else {
-                    const luckDomains = userData.luckMailDomains ? userData.luckMailDomains.split(',').map(d => d.trim()).filter(Boolean) : [];
-                    purchase = await luckMailApi.purchaseEmail(userData.luckMailApiKey, luckDomains);
+                    // ms_imap/ms_graph → pakai luckMailDomains (domain Microsoft, mis. outlook.de)
+                    // self_built/google_variant → pakai tmailLuckyousDomain (custom domain milik user)
+                    const luckyousType = userData.tmailLuckyousType;
+                    const isMicrosoftType = luckyousType === 'ms_imap' || luckyousType === 'ms_graph';
+                    let luckDomains;
+                    if (!isMicrosoftType && userData.tmailLuckyousDomain) {
+                        luckDomains = [userData.tmailLuckyousDomain];
+                    } else {
+                        luckDomains = userData.luckMailDomains
+                            ? userData.luckMailDomains.split(',').map(d => d.trim()).filter(Boolean)
+                            : [];
+                    }
+                    purchase = await luckMailApi.purchaseEmail(userData.luckMailApiKey, luckDomains, luckyousType);
                 }
                 
                 currentEmail = purchase.email;

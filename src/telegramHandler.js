@@ -782,6 +782,63 @@ function initTelegram() {
                 return;
             }
 
+            // ── Tmail Luckyous settings ──────────────────────────────────────
+            if (data === 'edit_tmailluckyous_domain') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                const domInput = await askTelegramUser(chatId,
+                    `🌐 Enter <b>Luckyous Domain</b>:\n<i>Example: jungkirbalik.my.id, kuber.com</i>\n<i>Must be a valid domain (no http/https, no spaces)</i>`);
+                if (!domInput) return;
+                const domClean = domInput.trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/\/$/, '');
+                // Validate: must contain at least one dot, no spaces, no slashes
+                const domainRegex = /^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?)+$/i;
+                if (!domainRegex.test(domClean)) {
+                    bot.sendMessage(chatId, `❌ <b>Invalid domain format.</b>\nExample valid domains: <code>jungkirbalik.my.id</code>, <code>kuber.com</code>\nNo http://, no spaces, must have TLD.`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                    return;
+                }
+                db.saveUser(chatId, { tmailLuckyousDomain: domClean });
+                bot.sendMessage(chatId, `✅ <b>Luckyous Domain saved:</b> <code>${domClean}</code>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                return;
+            }
+
+            if (data === 'edit_tmailluckyous_type') {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                bot.sendMessage(chatId,
+                    `📦 <b>Select Luckyous Email Type</b>\n━━━━━━━━━━━━━━━━━━\n` +
+                    `Choose the <code>email_type</code> to use when purchasing email:\n\n` +
+                    `• <code>ms_graph</code> — Microsoft Graph\n` +
+                    `• <code>ms_imap</code> — Microsoft IMAP\n` +
+                    `• <code>self_built</code> — Self-built server\n` +
+                    `• <code>google_variant</code> — Google Variant`,
+                    {
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [{ text: "ms_graph", callback_data: "set_luckyous_type_ms_graph" }, { text: "ms_imap", callback_data: "set_luckyous_type_ms_imap" }],
+                                [{ text: "self_built", callback_data: "set_luckyous_type_self_built" }, { text: "google_variant", callback_data: "set_luckyous_type_google_variant" }],
+                                [{ text: "❌ Cancel", callback_data: "show_main_menu" }]
+                            ]
+                        }
+                    }
+                );
+                return;
+            }
+
+            if (data.startsWith('set_luckyous_type_')) {
+                bot.answerCallbackQuery(query.id).catch(() => {});
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                const typeValue = data.replace('set_luckyous_type_', '');
+                const allowedTypes = ['ms_graph', 'ms_imap', 'self_built', 'google_variant'];
+                if (!allowedTypes.includes(typeValue)) {
+                    bot.sendMessage(chatId, `❌ Unknown type.`, mainMenuKeyboard);
+                    return;
+                }
+                db.saveUser(chatId, { tmailLuckyousType: typeValue });
+                bot.sendMessage(chatId, `✅ <b>Luckyous Email Type set:</b> <code>${typeValue}</code>`, { parse_mode: 'HTML', ...mainMenuKeyboard });
+                return;
+            }
+
             // Retry Autopay
             if (data.startsWith('mode_retrypay_')) {
                 const email = data.replace('mode_retrypay_', '');
@@ -880,6 +937,8 @@ function sendSettingsMenu(chatId, userData) {
     const tmailDomains = userData.tmailDomains || '🔀 Auto Round-Robin (all domains)';
     const luckKey = userData.luckMailApiKey ? '✅ Set' : '⚠️ Not set';
     const luckDomains = userData.luckMailDomains || 'outlook.com, outlook.jp';
+    const luckyousDomain = userData.tmailLuckyousDomain || '⚠️ Not set';
+    const luckyousType   = userData.tmailLuckyousType   || '⚠️ Not set';
 
     const text = `⚙️ <b>MY SETTINGS</b>\n━━━━━━━━━━━━━━━━━━\n` +
                  `🔑 <b>Password Mode    :</b> <code>${modeLabel}</code>\n` +
@@ -889,6 +948,9 @@ function sendSettingsMenu(chatId, userData) {
                  `📬 <b>T-Mail Base URL  :</b> <code>${tmailUrl}</code>\n` +
                  `🔑 <b>T-Mail Key       :</b> <code>${tmailKey}</code>\n` +
                  `🌐 <b>T-Mail Domains   :</b> <code>${tmailDomains}</code>\n\n` +
+                 `🍀 <b>Tmail Luckyous</b>\n` +
+                 `   🌐 <b>Domain :</b> <code>${luckyousDomain}</code>\n` +
+                 `   📦 <b>Type   :</b> <code>${luckyousType}</code>\n\n` +
                  `<i>Select an option below to change:</i>`;
 
     bot.sendMessage(chatId, text, {
@@ -901,6 +963,7 @@ function sendSettingsMenu(chatId, userData) {
                 [{ text: "📬 T-Mail Base URL", callback_data: "edit_tmail_url" }],
                 [{ text: "🔑 T-Mail API Key", callback_data: "edit_tmail_key" }],
                 [{ text: "🌐 T-Mail Domains", callback_data: "edit_tmail_domains" }],
+                [{ text: "🌐 Luckyous Domain", callback_data: "edit_tmailluckyous_domain" }, { text: "📦 Luckyous Type", callback_data: "edit_tmailluckyous_type" }],
                 [{ text: "❌ Close", callback_data: "show_main_menu" }]
             ]
         }

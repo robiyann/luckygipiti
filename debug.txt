@@ -1,0 +1,963 @@
+[23:39:28] 🔵  [#431 | donnamurray2273@outlook.de] Sesi: URL otorisasi ✓
+[23:39:28] 🔵 [GoPay OTP] Subscription aktif: 6899925b-2673-4068-aeb5-78c154fea601
+[23:39:28] 🔵  [#633 | gabriellehicks3548@outlook.de] OTP: waiting...
+[23:39:28] 🔵 [#633] Waiting for OTP from LuckMail for gabriellehicks3548@outlook.de...
+[23:39:28] 🔵 [LuckMail] Memulai pencarian OTP untuk gabriellehicks3548@outlook.de (Token: tok_866351610f49a2b03d2a992e32269bc7)...
+[23:39:29] 🔍  [#450 | kellygarza7228@outlook.de] GoPay PIN verified ✓
+[23:39:29] ✅  [#450 | kellygarza7228@outlook.de] GoPay linking done ✓
+[23:39:29] 🔵  [#634 | williamanderson3730@outlook.de] Finalizing...
+[23:39:29] 🔵  [#714 | sharonpetersen9242@outlook.de] Sesi: Kode ✓
+[23:39:30] ✅ [LuckMail] Kode verifikasi ditemukan: 633616
+[23:39:30] 🔵  [#235 | brittanycastillo8402@outlook.de] OTP ✓ (633616)
+[23:39:31] 🔍  [#598 | austinhopkins4184@outlook.de] Stripe session ✓
+[23:39:31] 🔵  [#598 | austinhopkins4184@outlook.de] Konfirmasi pembayaran...
+[23:39:31] 🔵 Sentinel/req ✓
+[23:39:31] 🔵 Challenge: pow(d=07a120) turnstile(20636ch) so(yes)
+[23:39:31] 🔵 PoW ✓ (605ch)
+[23:39:31] 🔵 VM: 83 instructions
+[23:39:31] 🔵 VM ✓ (916ch)
+[23:39:31] 🔵 Turnstile ✓ (916ch)
+[23:39:31] 🔵 Token: [p:605ch t:916ch c:2104ch flow:oauth_create_account]
+[23:39:31] 🔵  [#431 | donnamurray2273@outlook.de] Sesi: Auth aktif ✓
+[23:39:31] 🔵  [#235 | brittanycastillo8402@outlook.de] Finalizing...
+[23:39:31] ✅ [GoPay OTP] Kode ditemukan: 902348
+[23:39:31] 🔍  [#777 | jamesbrewer7303@outlook.de] OTP entered: 902348
+[23:39:32] ✅ [LuckMail] Kode verifikasi ditemukan: 906692
+[23:39:32] 🔵  [#525 | angelaalvarez8144@outlook.de] OTP ✓ (906692)
+[23:39:32] ⚠️  [#525 | angelaalvarez8144@outlook.de] OTP Validate: Wrong code. Please check it and try again. — Register sudahh selesai, menyerahkan ke Recovery Login Flow.
+[23:39:32] 🔵 [#525] Recovery: Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang...
+[23:39:32] 🔵  [#525 | angelaalvarez8144@outlook.de] Autentikasi...
+[23:39:32] 🔵 Sentinel/req ✓
+[23:39:32] 🔵 Challenge: pow(d=071af4) turnstile(21028ch) so(yes)
+[23:39:32] 🔵 PoW ✓ (573ch)
+[23:39:32] 🔵 VM: 86 instructions
+[23:39:32] 🔵 VM ✓ (916ch)
+[23:39:32] 🔵 Turnstile ✓ (916ch)
+[23:39:32] 🔵 Token: [p:573ch t:916ch c:2084ch flow:oauth_create_account]
+[23:39:32] 🔍  [#777 | jamesbrewer7303@outlook.de] GoPay OTP validated ✓
+[23:39:33] 🔍  [#777 | jamesbrewer7303@outlook.de] GoPay PIN page ✓
+[23:39:33] 🔍  [#777 | jamesbrewer7303@outlook.de] GoPay PIN verified ✓
+[23:39:33] 🔵 Sentinel/req ✓
+[23:39:33] 🔵 Challenge: pow(d=067608) turnstile(22148ch) so(yes)
+[23:39:33] 🔵 PoW ✓ (593ch)
+[23:39:33] 🔵 VM: 84 instructions
+[23:39:33] 🔵 VM ✓ (920ch)
+[23:39:33] 🔵 Turnstile ✓ (920ch)
+[23:39:33] 🔵 Token: [p:593ch t:920ch c:2188ch flow:authorize_continue]
+[23:39:33] ✅  [#777 | jamesbrewer7303@outlook.de] GoPay linking done ✓
+[23:39:34] 🔵  [#525 | angelaalvarez8144@outlook.de] Sesi: CSRF ✓
+[23:39:34] 🔵  [#450 | kellygarza7228@outlook.de] Proses pembayaran GoPay...
+[23:39:34] ⚠️  [#708 | timothywalker1093@outlook.de] Autopay gagal [Login]: Access token gagal didapat
+[23:39:34] 🚫 Recovery gagal: [Login] Access token gagal didapat
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:39:34] ⚠️ [Bot] Task failed, re-queuing replacement for 6276972957 (6/50 retries used, 44 left)
+[23:39:34] 🔵 [Pool] Selesai/Release slot untuk task task_2_1777653517172 (User 6276972957)
+[23:39:34] 🔵 [Pool] Menjalankan task task_16_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:39:34] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:39:34] ✅ [LuckMail] Kode verifikasi ditemukan: 491862
+[23:39:34] 🔵  [#633 | gabriellehicks3548@outlook.de] OTP ✓ (491862)
+[23:39:34] ✅  [#598 | austinhopkins4184@outlook.de] Stripe confirmed ✓
+[23:39:34] 🔍  [#598 | austinhopkins4184@outlook.de] Confirm: approval=undefined si=yes pi=null
+[23:39:34] 🔵  [#598 | austinhopkins4184@outlook.de] Arah midtrans...
+[23:39:34] 🔍  [#598 | austinhopkins4184@outlook.de] Following Stripe redirect...
+[23:39:34] 🔵  [#431 | donnamurray2273@outlook.de] Sesi: Email dikirim ✓
+[23:39:34] 🔵  [#431 | donnamurray2273@outlook.de] Sesi: Rute kode verifikasi
+[23:39:34] 🔵  [#431 | donnamurray2273@outlook.de] Sesi: Tantangan kode...
+[23:39:34] 🔵 [#431] Waiting for OTP from LuckMail for donnamurray2273@outlook.de...
+[23:39:34] 🔵 [LuckMail] Memulai pencarian OTP untuk donnamurray2273@outlook.de (Token: tok_b16725c4240e446ab81e6edcde65e4f3)...
+[23:39:34] 🔍 [LuckMail] Memiliki record otp sebelumnya: 035266, akan di-ignore.
+[23:39:34] ✅  [#450 | kellygarza7228@outlook.de] Charge initiated ✓
+[23:39:34] 🔵  [#525 | angelaalvarez8144@outlook.de] Sesi: URL otorisasi ✓
+[23:39:34] 🔍  [#450 | kellygarza7228@outlook.de] Payment validated ✓
+[23:39:34] 🔍  [#450 | kellygarza7228@outlook.de] Payment confirmed ✓
+[23:39:34] 🔍  [#450 | kellygarza7228@outlook.de] Charge PIN challenge: 73c8a641...
+[23:39:34] 🔵  [#634 | williamanderson3730@outlook.de] OAuth callback...
+[23:39:35] ⚠️  [#633 | gabriellehicks3548@outlook.de] OTP Validate: Wrong code. Please check it and try again. — Register sudaah selesai, menyerahkan ke Recovery Login Flow.
+[23:39:35] 🔵 [#633] Recovery: Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang...
+[23:39:35] 🔵  [#633 | gabriellehicks3548@outlook.de] Autentikasi...
+[23:39:35] 🔍  [#598 | austinhopkins4184@outlook.de] Midtrans SNAP ✓ (56916eb5-e9ab-4ed7-ad42-bb3ade0a3d18)
+[23:39:35] ⚠️  [#714 | sharonpetersen9242@outlook.de] Autopay gagal [Login]: Access token gagal didapat
+[23:39:35] 🚫 Recovery gagal: [Login] Access token gagal didapat
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:39:35] ⚠️ [Bot] Task failed, re-queuing replacement for 6276972957 (7/50 retries used, 43 left)
+[23:39:35] 🔵 [Pool] Selesai/Release slot untuk task task_6_1777653517172 (User 6276972957)
+[23:39:35] 🔵 [Pool] Menjalankan task task_17_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:39:35] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:39:35] 🔍  [#598 | austinhopkins4184@outlook.de] Midtrans transaction ✓
+[23:39:35] 🔵 [LuckMail] Berhasil membeli email: amywalker5457@outlook.de (Token: tok_ee6b7968426421ac51ceea34ed807d32, ID: 1856756)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: amywalker5457@outlook.de                        ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:39:35] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:39:35] 🔵 Menginisialisasi engine...
+[23:39:35] 🔵 Proses pendaftaran sedang berjalan...
+[23:39:35] 🔵  [#291 | amywalker5457@outlook.de] Memulai... (percobaan 1/3)
+[23:39:35] 🔵  [#291 | amywalker5457@outlook.de] Init session
+[23:39:35] 🔵 [GoPay Queue] Granted GoPay slot to user 6276972957
+[23:39:35] ✅  [#598 | austinhopkins4184@outlook.de] [Pool] Berhasil mengunci Slot #15 (81776444960)
+[23:39:35] 🔵  [#598 | austinhopkins4184@outlook.de] Hubungkan GoPay (+6281776444960)...
+[23:39:35] 🔍  [#450 | kellygarza7228@outlook.de] Charge PIN verified ✓
+[23:39:35] ✅  [#450 | kellygarza7228@outlook.de] Payment processed ✓
+[23:39:35] 🔵  [#525 | angelaalvarez8144@outlook.de] Sesi: Auth aktif ✓
+[23:39:36] 🔵 [LuckMail] Berhasil membeli email: kathylamb9720@outlook.de (Token: tok_40be99aacc351c18ef330149b2a672e2, ID: 1856758)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: kathylamb9720@outlook.de                        ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:39:36] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:39:36] 🔵 Menginisialisasi engine...
+[23:39:36] 🔵 Proses pendaftaran sedang berjalan...
+[23:39:36] 🔵  [#825 | kathylamb9720@outlook.de] Memulai... (percobaan 1/3)
+[23:39:36] 🔵  [#825 | kathylamb9720@outlook.de] Init session
+[23:39:36] 🔵  [#235 | brittanycastillo8402@outlook.de] OAuth callback...
+[23:39:36] 🔵  [#633 | gabriellehicks3548@outlook.de] Sesi: CSRF ✓
+[23:39:36] ✅  [#598 | austinhopkins4184@outlook.de] GoPay linked ✓
+[23:39:36] 🔍  [#598 | austinhopkins4184@outlook.de] GoPay validate-reference ✓
+[23:39:36] 🔵  [#633 | gabriellehicks3548@outlook.de] Sesi: URL otorisasi ✓
+[23:39:36] 🔍  [#598 | austinhopkins4184@outlook.de] GoPay consent ✓ (OTP sent to WhatsApp)
+[23:39:36] 🔵  [#598 | austinhopkins4184@outlook.de] Verifikasi GoPay...
+
+═══════════════════════════════════════
+  Verifikasi GoPay
+  Kode dikirim ke WhatsApp: +6281776444960
+═══════════════════════════════════════
+
+[23:39:36] 🔵  [#598 | austinhopkins4184@outlook.de] [Auto OTP] Polling GoPay OTP dari server...
+[23:39:36] 🔵 [GoPay OTP] Subscribe OTP (Srv #15) untuk nomor: 81776444960...
+[23:39:36] 🔵 [GoPay OTP] Subscription aktif: 8cf5a116-71ce-45a3-a882-a24b250095bb
+[23:39:37] 🔵  [#825 | kathylamb9720@outlook.de] CSRF ✓
+[23:39:37] 🔵  [#825 | kathylamb9720@outlook.de] Authorize...
+[23:39:37] 🔵  [#291 | amywalker5457@outlook.de] CSRF ✓
+[23:39:38] 🔵 Sentinel/req ✓
+[23:39:38] 🔵 Challenge: pow(d=072fe8) turnstile(23396ch) so(yes)
+[23:39:38] 🔵 PoW ✓ (581ch)
+[23:39:38] 🔵 VM: 77 instructions
+[23:39:38] 🔵 VM ✓ (920ch)
+[23:39:38] 🔵 Turnstile ✓ (920ch)
+[23:39:38] 🔵 Token: [p:581ch t:920ch c:2212ch flow:authorize_continue]
+[23:39:38] 🔍 [LuckMail] Mendapatkan kode OTP 035266 tapi ini adalah kode lama. Melanjutkan polling... (1/10)
+[23:39:38] 🔵  [#291 | amywalker5457@outlook.de] Authorize...
+[23:39:39] 🔵  [#777 | jamesbrewer7303@outlook.de] Proses pembayaran GoPay...
+[23:39:39] 🔵  [#633 | gabriellehicks3548@outlook.de] Sesi: Auth aktif ✓
+[23:39:39] 🔵  [#525 | angelaalvarez8144@outlook.de] Sesi: Email dikirim ✓
+[23:39:39] 🔵  [#525 | angelaalvarez8144@outlook.de] Sesi: Rute kode verifikasi
+[23:39:39] 🔵  [#525 | angelaalvarez8144@outlook.de] Sesi: Tantangan kode...
+[23:39:39] 🔵 [#525] Waiting for OTP from LuckMail for angelaalvarez8144@outlook.de...
+[23:39:39] 🔵 [LuckMail] Memulai pencarian OTP untuk angelaalvarez8144@outlook.de (Token: tok_88b3effdf0194d7b12630dce0541cf96)...
+[23:39:39] 🔍 [LuckMail] Memiliki record otp sebelumnya: 906692, akan di-ignore.
+[23:39:39] 🔵  [#825 | kathylamb9720@outlook.de] Authorize ✓
+[23:39:39] 🔵  [#825 | kathylamb9720@outlook.de] Sentinel...
+[23:39:39] 🔵 [GoPay OTP] Masih menunggu... (3s)
+[23:39:39] ✅  [#777 | jamesbrewer7303@outlook.de] Charge initiated ✓
+[23:39:40] 🔵  [#634 | williamanderson3730@outlook.de] OAuth ✓
+[23:39:40] 🔵  [#634 | williamanderson3730@outlook.de] Done ✓
+[23:39:40] ✅  [#634 | williamanderson3730@outlook.de] Account created ✓
+[23:39:40] 🔵 Proses pembayaran GoPay...
+[23:39:40] 🔵  [#634 | williamanderson3730@outlook.de] Warming up session cookies...
+[23:39:40] 🔍  [#777 | jamesbrewer7303@outlook.de] Payment validated ✓
+[23:39:41] 🔵 Sentinel/req ✓
+[23:39:41] 🔵 Challenge: pow(d=07a120) turnstile(20100ch) so(yes)
+[23:39:41] 🔵 PoW ✓ (593ch)
+[23:39:41] 🔵 VM: 86 instructions
+[23:39:41] 🔵 VM ✓ (916ch)
+[23:39:41] 🔵 Turnstile ✓ (916ch)
+[23:39:41] 🔵 Token: [p:593ch t:916ch c:2040ch flow:authorize_continue]
+[23:39:41] 🔍  [#777 | jamesbrewer7303@outlook.de] Payment confirmed ✓
+[23:39:41] 🔍  [#777 | jamesbrewer7303@outlook.de] Charge PIN challenge: 35669890...
+[23:39:41] 🔍  [#777 | jamesbrewer7303@outlook.de] Charge PIN verified ✓
+[23:39:41] 🔵 Sentinel/req ✓
+[23:39:41] 🔵 Challenge: pow(d=061a80) turnstile(20928ch) so(no)
+[23:39:41] 🔵 PoW ✓ (581ch)
+[23:39:41] 🔵 VM: 93 instructions
+[23:39:41] 🔵 VM ✓ (944ch)
+[23:39:41] 🔵 Turnstile ✓ (944ch)
+[23:39:41] 🔵 Token: [p:581ch t:944ch c:1804ch flow:username_password_create]
+[23:39:41] 🔵  [#825 | kathylamb9720@outlook.de] Sentinel ✓ (3429ch)
+[23:39:41] 🔵  [#825 | kathylamb9720@outlook.de] Register...
+[23:39:41] 🔵  [#235 | brittanycastillo8402@outlook.de] OAuth ✓
+[23:39:42] 🔵  [#235 | brittanycastillo8402@outlook.de] Done ✓
+[23:39:42] ✅  [#235 | brittanycastillo8402@outlook.de] Account created ✓
+[23:39:42] 🔵 Proses pembayaran GoPay...
+[23:39:42] 🔵  [#235 | brittanycastillo8402@outlook.de] Warming up session cookies...
+[23:39:42] 🔍  [#634 | williamanderson3730@outlook.de] Session warm-up status: 200
+[23:39:42] 🔍 [LuckMail] Mendapatkan kode OTP 035266 tapi ini adalah kode lama. Melanjutkan polling... (2/10)
+[23:39:42] 🔵  [#633 | gabriellehicks3548@outlook.de] Sesi: Email dikirim ✓
+[23:39:42] 🔵  [#633 | gabriellehicks3548@outlook.de] Sesi: Rute kode verifikasi
+[23:39:42] 🔵  [#633 | gabriellehicks3548@outlook.de] Sesi: Tantangan kode...
+[23:39:42] 🔵 [#633] Waiting for OTP from LuckMail for gabriellehicks3548@outlook.de...
+[23:39:42] 🔵 [LuckMail] Memulai pencarian OTP untuk gabriellehicks3548@outlook.de (Token: tok_866351610f49a2b03d2a992e32269bc7)...
+[23:39:42] 🔍 [LuckMail] Memiliki record otp sebelumnya: 491862, akan di-ignore.
+[23:39:42] 🔵  [#291 | amywalker5457@outlook.de] Authorize ✓
+[23:39:42] 🔵  [#291 | amywalker5457@outlook.de] Sentinel...
+[23:39:42] ✅  [#777 | jamesbrewer7303@outlook.de] Payment processed ✓
+[23:39:42] ✅ [GoPay OTP] Kode ditemukan: 107762
+[23:39:42] 🔍  [#598 | austinhopkins4184@outlook.de] OTP entered: 107762
+[23:39:43] 🔍  [#598 | austinhopkins4184@outlook.de] GoPay OTP validated ✓
+[23:39:43] 🔍  [#598 | austinhopkins4184@outlook.de] GoPay PIN page ✓
+[23:39:43] 🔍  [#598 | austinhopkins4184@outlook.de] GoPay PIN verified ✓
+[23:39:43] 🔵  [#825 | kathylamb9720@outlook.de] Register ✓
+[23:39:43] ✅  [#598 | austinhopkins4184@outlook.de] GoPay linking done ✓
+[23:39:43] 🔵  [#634 | williamanderson3730@outlook.de] Info harga...
+[23:39:43] 🔍  [#235 | brittanycastillo8402@outlook.de] Session warm-up status: 200
+[23:39:43] ✅ [LuckMail] Kode verifikasi ditemukan: 616365
+[23:39:43] 🔵  [#525 | angelaalvarez8144@outlook.de] Sesi: Mencoba kode 616365...
+[23:39:44] 🔵  [#825 | kathylamb9720@outlook.de] OTP: waiting...
+[23:39:44] 🔵 [#825] Waiting for OTP from LuckMail for kathylamb9720@outlook.de...
+[23:39:44] 🔵 [LuckMail] Memulai pencarian OTP untuk kathylamb9720@outlook.de (Token: tok_40be99aacc351c18ef330149b2a672e2)...
+[23:39:44] ⚠️  [#525 | angelaalvarez8144@outlook.de] Sesi: Kode salah, masukkan ulang...
+[23:39:44] 🔵 [#525] Waiting for OTP from LuckMail for angelaalvarez8144@outlook.de...
+[23:39:44] 🔵 [LuckMail] Memulai pencarian OTP untuk angelaalvarez8144@outlook.de (Token: tok_88b3effdf0194d7b12630dce0541cf96)...
+[23:39:44] 🔍 [LuckMail] Memiliki record otp sebelumnya: 616365, akan di-ignore.
+[23:39:44] 🔍  [#634 | williamanderson3730@outlook.de] Pricing countries ✓
+[23:39:45] 🔍  [#634 | williamanderson3730@outlook.de] Pricing config ✓
+[23:39:45] 🔵  [#634 | williamanderson3730@outlook.de] Sesi checkout...
+[23:39:45] 🔵  [#634 | williamanderson3730@outlook.de] Sesi checkout (via ErdogAI)...
+[23:39:45] 🔵  [#235 | brittanycastillo8402@outlook.de] Info harga...
+[23:39:45] 🔵  [#450 | kellygarza7228@outlook.de] Cek penyelesaian...
+[23:39:45] 🔍  [#450 | kellygarza7228@outlook.de] Status: settlement [1/12]
+[23:39:45] ✅  [#450 | kellygarza7228@outlook.de] Settlement ✓
+[23:39:45] 🔵  [#450 | kellygarza7228@outlook.de] Pembayaran selesai, merilis slot GoPay lebih awal untuk di-reset...
+[23:39:46] 🔍  [#235 | brittanycastillo8402@outlook.de] Pricing countries ✓
+[23:39:46] 🔵  [#450 | kellygarza7228@outlook.de] Verifikasi checkout...
+[23:39:46] 🔍  [#450 | kellygarza7228@outlook.de] Checkout verify ✓ (Local IP)
+[23:39:46] ✅ [LuckMail] Kode verifikasi ditemukan: 690100
+[23:39:46] 🔵  [#431 | donnamurray2273@outlook.de] Sesi: Mencoba kode 690100...
+[23:39:46] 🔍  [#235 | brittanycastillo8402@outlook.de] Pricing config ✓
+[23:39:46] 🔵  [#235 | brittanycastillo8402@outlook.de] Sesi checkout...
+[23:39:46] 🔵  [#235 | brittanycastillo8402@outlook.de] Sesi checkout (via ErdogAI)...
+[23:39:46] ✅ [LuckMail] Kode verifikasi ditemukan: 618367
+[23:39:46] 🔵  [#633 | gabriellehicks3548@outlook.de] Sesi: Mencoba kode 618367...
+[23:39:46] ⚠️  [#431 | donnamurray2273@outlook.de] Sesi: Kode salah, masukkan ulang...
+[23:39:46] 🔵 [#431] Waiting for OTP from LuckMail for donnamurray2273@outlook.de...
+[23:39:46] 🔵 [LuckMail] Memulai pencarian OTP untuk donnamurray2273@outlook.de (Token: tok_b16725c4240e446ab81e6edcde65e4f3)...
+[23:39:46] 🔍 [LuckMail] Memiliki record otp sebelumnya: 690100, akan di-ignore.
+[23:39:47] ⚠️  [#633 | gabriellehicks3548@outlook.de] Sesi: Kode salah, masukkan ulang...
+[23:39:47] 🔵 [#633] Waiting for OTP from LuckMail for gabriellehicks3548@outlook.de...
+[23:39:47] 🔵 [LuckMail] Memulai pencarian OTP untuk gabriellehicks3548@outlook.de (Token: tok_866351610f49a2b03d2a992e32269bc7)...
+[23:39:47] 🔍 [LuckMail] Memiliki record otp sebelumnya: 618367, akan di-ignore.
+[23:39:47] 🔍 [LuckMail] Mendapatkan kode OTP 616365 tapi ini adalah kode lama. Melanjutkan polling... (1/10)
+[23:39:48] 🔵 Sentinel/req ✓
+[23:39:48] 🔵 Challenge: pow(d=064c47) turnstile(21940ch) so(no)
+[23:39:48] 🔵 PoW ✓ (601ch)
+[23:39:48] 🔵 VM: 87 instructions
+[23:39:48] 🔵 VM ✓ (992ch)
+[23:39:48] 🔵 Turnstile ✓ (992ch)
+[23:39:48] 🔵 Token: [p:601ch t:992ch c:1804ch flow:username_password_create]
+[23:39:48] 🔵  [#291 | amywalker5457@outlook.de] Sentinel ✓ (3497ch)
+[23:39:48] 🔵  [#291 | amywalker5457@outlook.de] Register...
+[23:39:48] 🔵  [#598 | austinhopkins4184@outlook.de] Proses pembayaran GoPay...
+[23:39:48] ✅ [LuckMail] Kode verifikasi ditemukan: 051424
+[23:39:48] 🔵  [#825 | kathylamb9720@outlook.de] OTP ✓ (051424)
+[23:39:48] ✅  [#598 | austinhopkins4184@outlook.de] Charge initiated ✓
+[23:39:49] 🔍  [#598 | austinhopkins4184@outlook.de] Payment validated ✓
+[23:39:49] 🔍  [#598 | austinhopkins4184@outlook.de] Payment confirmed ✓
+[23:39:49] 🔍  [#598 | austinhopkins4184@outlook.de] Charge PIN challenge: 9f009d75...
+[23:39:49] 🔍  [#598 | austinhopkins4184@outlook.de] Charge PIN verified ✓
+[23:39:49] 🔵  [#825 | kathylamb9720@outlook.de] Finalizing...
+[23:39:49] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (1/10)
+[23:39:49] ✅  [#598 | austinhopkins4184@outlook.de] Payment processed ✓
+[23:39:49] ✅  [#450 | kellygarza7228@outlook.de] ChatGPT Plus ✓ (Local IP)
+[23:39:49] 🔵  [#450 | kellygarza7228@outlook.de] Verifikasi akhir langganan API...
+[23:39:49] 🔍 [LuckMail] Mendapatkan kode OTP 618367 tapi ini adalah kode lama. Melanjutkan polling... (1/10)
+[23:39:49] 🔵  [#291 | amywalker5457@outlook.de] Register ✓
+[23:39:50] 🔵 Sentinel/req ✓
+[23:39:50] 🔵 Challenge: pow(d=061a80) turnstile(20364ch) so(yes)
+[23:39:50] 🔵 PoW ✓ (577ch)
+[23:39:50] 🔵 VM: 82 instructions
+[23:39:50] 🔵 VM ✓ (940ch)
+[23:39:50] 🔵 Turnstile ✓ (940ch)
+[23:39:50] 🔵 Token: [p:577ch t:940ch c:2084ch flow:oauth_create_account]
+[23:39:50] 🔵  [#291 | amywalker5457@outlook.de] OTP: waiting...
+[23:39:50] 🔵 [#291] Waiting for OTP from LuckMail for amywalker5457@outlook.de...
+[23:39:50] 🔵 [LuckMail] Memulai pencarian OTP untuk amywalker5457@outlook.de (Token: tok_ee6b7968426421ac51ceea34ed807d32)...
+[23:39:51] ✅  [#235 | brittanycastillo8402@outlook.de] Checkout ✓ (Japan)
+[23:39:51] 🔵  [#235 | brittanycastillo8402@outlook.de] Inisiasi pembayaran...
+[23:39:51] ✅ [LuckMail] Kode verifikasi ditemukan: 776912
+[23:39:51] 🔵  [#525 | angelaalvarez8144@outlook.de] Sesi: Mencoba kode 776912...
+[23:39:52] 🔍  [#235 | brittanycastillo8402@outlook.de] Stripe session ✓
+[23:39:52] 🔍  [#235 | brittanycastillo8402@outlook.de] Payment method ✓ (pm_1TSK6XC6h1nxGoI33TVlItFw)
+[23:39:52] 🔵  [#525 | angelaalvarez8144@outlook.de] Sesi: Kode ✓
+[23:39:52] 🔵  [#777 | jamesbrewer7303@outlook.de] Cek penyelesaian...
+[23:39:52] ✅  [#634 | williamanderson3730@outlook.de] Checkout ✓ (Japan)
+[23:39:52] 🔵  [#634 | williamanderson3730@outlook.de] Inisiasi pembayaran...
+[23:39:52] 🔍  [#235 | brittanycastillo8402@outlook.de] Stripe init ✓ (checksum: yLfiHu9CUe...)
+[23:39:52] 🔵  [#235 | brittanycastillo8402@outlook.de] Konfirmasi pembayaran...
+[23:39:53] 🔍  [#777 | jamesbrewer7303@outlook.de] Status: settlement [1/12]
+[23:39:53] ✅  [#777 | jamesbrewer7303@outlook.de] Settlement ✓
+[23:39:53] 🔵  [#777 | jamesbrewer7303@outlook.de] Pembayaran selesai, merilis slot GoPay lebih awal untuk di-reset...        
+[23:39:53] 🔵  [#777 | jamesbrewer7303@outlook.de] Verifikasi checkout...
+[23:39:53] 🔍  [#777 | jamesbrewer7303@outlook.de] Checkout verify ✓ (Local IP)
+[23:39:54] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (2/10)
+[23:39:54] ✅ [LuckMail] Kode verifikasi ditemukan: 397802
+[23:39:54] 🔵  [#633 | gabriellehicks3548@outlook.de] Sesi: Mencoba kode 397802...
+[23:39:54] 🔍  [#634 | williamanderson3730@outlook.de] Payment method ✓ (pm_1TSK6ZC6h1nxGoI3ZJr4yMMZ)
+[23:39:54] ✅  [#450 | kellygarza7228@outlook.de] Subscription: ChatGPT Plus ✓ (Account Verified - Local IP)
+[23:39:54] 🔍  [#450 | kellygarza7228@outlook.de] Warning: Gagal report winrate ke OTP Server: Request failed with status code 404
+[23:39:54] ✅ Autopay sukses untuk kellygarza7228@outlook.de
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:39:54] 🔵 [Bot] Akun Plus ke-1/50 berhasil (6276972957)
+[23:39:54] 🔵 [Pool] Selesai/Release slot untuk task task_8_1777653517172 (User 6276972957)
+[23:39:54] 🔵 [Pool] Menjalankan task task_18_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:39:54] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:39:54] 🔵  [#825 | kathylamb9720@outlook.de] OAuth callback...
+[23:39:55] 🔵  [#633 | gabriellehicks3548@outlook.de] Sesi: Kode ✓
+[23:39:55] 🔍  [#634 | williamanderson3730@outlook.de] Stripe init ✓ (checksum: 4j8i7TuLsO...)
+[23:39:55] ✅ [LuckMail] Kode verifikasi ditemukan: 735830
+[23:39:55] 🔵  [#291 | amywalker5457@outlook.de] OTP ✓ (735830)
+[23:39:55] ✅  [#235 | brittanycastillo8402@outlook.de] Stripe confirmed ✓
+[23:39:55] 🔍  [#235 | brittanycastillo8402@outlook.de] Confirm: approval=undefined si=yes pi=null
+[23:39:55] 🔵  [#235 | brittanycastillo8402@outlook.de] Arah midtrans...
+[23:39:55] 🔍  [#235 | brittanycastillo8402@outlook.de] Following Stripe redirect...
+[23:39:56] 🔵 [LuckMail] Berhasil membeli email: emilycampbell5996@outlook.de (Token: tok_81f796ca18f3fb9330d9742d271fa426, ID: 1856771)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: emilycampbell5996@outlook.de                    ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:39:56] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:39:56] 🔵 Menginisialisasi engine...
+[23:39:56] 🔵 Proses pendaftaran sedang berjalan...
+[23:39:56] 🔵  [#637 | emilycampbell5996@outlook.de] Memulai... (percobaan 1/3)
+[23:39:56] 🔵  [#637 | emilycampbell5996@outlook.de] Init session
+[23:39:56] 🔍  [#634 | williamanderson3730@outlook.de] Stripe session ✓
+[23:39:56] 🔵  [#634 | williamanderson3730@outlook.de] Konfirmasi pembayaran...
+[23:39:56] ⚠️  [#291 | amywalker5457@outlook.de] OTP Validate: Wrong code. Please check it and try again. — Register sudah sellesai, menyerahkan ke Recovery Login Flow.
+[23:39:56] 🔵 [#291] Recovery: Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang...
+[23:39:56] 🔵  [#291 | amywalker5457@outlook.de] Autentikasi...
+[23:39:56] 🔵  [#291 | amywalker5457@outlook.de] Sesi: CSRF ✓
+[23:39:57] ✅  [#777 | jamesbrewer7303@outlook.de] ChatGPT Plus ✓ (Local IP)
+[23:39:57] 🔵  [#777 | jamesbrewer7303@outlook.de] Verifikasi akhir langganan API...
+[23:39:57] 🔵  [#291 | amywalker5457@outlook.de] Sesi: URL otorisasi ✓
+[23:39:57] 🔍  [#235 | brittanycastillo8402@outlook.de] Midtrans SNAP ✓ (3e6a1a68-bbc7-47ef-88b3-ee1406596e2d)
+[23:39:57] 🔍  [#235 | brittanycastillo8402@outlook.de] Midtrans transaction ✓
+[23:39:57] 🔵  [#637 | emilycampbell5996@outlook.de] CSRF ✓
+[23:39:57] 🔵 [GoPay Queue] Granted GoPay slot to user 6276972957
+[23:39:57] ✅  [#235 | brittanycastillo8402@outlook.de] [Pool] Berhasil mengunci Slot #27 (81776376494)
+[23:39:57] 🔵  [#235 | brittanycastillo8402@outlook.de] Hubungkan GoPay (+6281776376494)...
+[23:39:57] ⚠️  [#235 | brittanycastillo8402@outlook.de] GoPay Link/Network/Conflict gagal: GoPay sudah terhubung!. Merilis sloot #27 dan rotasi...
+[23:39:57] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (3/10)
+[23:39:58] 🔵  [#637 | emilycampbell5996@outlook.de] Authorize...
+[23:39:58] 🔵  [#291 | amywalker5457@outlook.de] Sesi: Auth aktif ✓
+[23:39:59] ⚠️  [#525 | angelaalvarez8144@outlook.de] Autopay gagal [Login]: Access token gagal didapat
+[23:39:59] 🚫 Recovery gagal: [Login] Access token gagal didapat
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:39:59] ⚠️ [Bot] Task failed, re-queuing replacement for 6276972957 (8/50 retries used, 42 left)
+[23:39:59] 🔵 [Pool] Selesai/Release slot untuk task task_14_1777653517172 (User 6276972957)
+[23:39:59] 🔵 [Pool] Menjalankan task task_19_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:39:59] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:39:59] 🔵  [#598 | austinhopkins4184@outlook.de] Cek penyelesaian...
+[23:39:59] 🔍  [#598 | austinhopkins4184@outlook.de] Status: settlement [1/12]
+[23:39:59] ✅  [#598 | austinhopkins4184@outlook.de] Settlement ✓
+[23:39:59] 🔵  [#598 | austinhopkins4184@outlook.de] Pembayaran selesai, merilis slot GoPay lebih awal untuk di-reset...      
+[23:39:59] 🔵  [#598 | austinhopkins4184@outlook.de] Verifikasi checkout...
+[23:39:59] 🔵 [LuckMail] Berhasil membeli email: michaelmaldonado2884@outlook.de (Token: tok_64361c37fc82c202061da2ad9ef2bafb, ID: 1856775)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: michaelmaldonado2884@outlook.de                 ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:39:59] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:39:59] 🔵 Menginisialisasi engine...
+[23:39:59] 🔵 Proses pendaftaran sedang berjalan...
+[23:39:59] 🔵  [#261 | michaelmaldonado2884@outlook.de] Memulai... (percobaan 1/3)
+[23:39:59] 🔵  [#261 | michaelmaldonado2884@outlook.de] Init session
+[23:39:59] 🔍  [#598 | austinhopkins4184@outlook.de] Checkout verify ✓ (Local IP)
+[23:39:59] 🔵 [GoPay Queue] Granted GoPay slot to user 6276972957
+[23:39:59] ✅  [#235 | brittanycastillo8402@outlook.de] [Pool] Berhasil mengunci Slot #8 (81776446741)
+[23:39:59] 🔵  [#235 | brittanycastillo8402@outlook.de] Hubungkan GoPay (+6281776446741)...
+[23:39:59] ✅  [#634 | williamanderson3730@outlook.de] Stripe confirmed ✓
+[23:39:59] 🔍  [#634 | williamanderson3730@outlook.de] Confirm: approval=undefined si=yes pi=null
+[23:39:59] 🔵  [#634 | williamanderson3730@outlook.de] Arah midtrans...
+[23:39:59] 🔍  [#634 | williamanderson3730@outlook.de] Following Stripe redirect...
+[23:40:00] 🔵  [#637 | emilycampbell5996@outlook.de] Authorize ✓
+[23:40:00] 🔵  [#637 | emilycampbell5996@outlook.de] Sentinel...
+[23:40:00] 🔵 Sentinel/req ✓
+[23:40:00] 🔵 Challenge: pow(d=0626a0) turnstile(21652ch) so(yes)
+[23:40:00] 🔵 PoW ✓ (573ch)
+[23:40:00] 🔵 VM: 80 instructions
+[23:40:00] 🔵 VM ✓ (936ch)
+[23:40:00] 🔵 Turnstile ✓ (936ch)
+[23:40:00] 🔵 Token: [p:573ch t:936ch c:2124ch flow:authorize_continue]
+[23:40:00] ✅  [#777 | jamesbrewer7303@outlook.de] Subscription: ChatGPT Plus ✓ (Account Verified - Local IP)
+[23:40:01] 🔍  [#777 | jamesbrewer7303@outlook.de] Warning: Gagal report winrate ke OTP Server: Request failed with status code 404
+[23:40:01] ✅ Autopay sukses untuk jamesbrewer7303@outlook.de
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:40:01] 🔵 [Bot] Akun Plus ke-2/50 berhasil (6276972957)
+[23:40:01] 🔵 [Pool] Selesai/Release slot untuk task task_4_1777653517172 (User 6276972957)
+[23:40:01] 🔵 [Pool] Menjalankan task task_20_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:40:01] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:40:01] 🔵 Sentinel/req ✓
+[23:40:01] 🔵 Challenge: pow(d=0719a8) turnstile(23248ch) so(no)
+[23:40:01] 🔵 PoW ✓ (597ch)
+[23:40:01] 🔵 VM: 85 instructions
+[23:40:01] 🔵 VM ✓ (932ch)
+[23:40:01] 🔵 Turnstile ✓ (932ch)
+[23:40:01] 🔵 Token: [p:597ch t:932ch c:1868ch flow:username_password_create]
+[23:40:01] 🔵  [#637 | emilycampbell5996@outlook.de] Sentinel ✓ (3497ch)
+[23:40:01] 🔵  [#637 | emilycampbell5996@outlook.de] Register...
+[23:40:01] ⚠️  [#633 | gabriellehicks3548@outlook.de] Autopay gagal [Login]: Access token gagal didapat
+[23:40:01] 🚫 Recovery gagal: [Login] Access token gagal didapat
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:40:01] ⚠️ [Bot] Task failed, re-queuing replacement for 6276972957 (9/50 retries used, 41 left)
+[23:40:01] 🔵 [Pool] Selesai/Release slot untuk task task_15_1777653517172 (User 6276972957)
+[23:40:01] 🔵 [Pool] Menjalankan task task_21_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:40:01] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:40:01] ✅  [#235 | brittanycastillo8402@outlook.de] GoPay linked ✓
+[23:40:01] 🔍  [#634 | williamanderson3730@outlook.de] Midtrans SNAP ✓ (24521c79-5b98-4f3b-98ec-898a8f816706)
+[23:40:01] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (4/10)
+[23:40:01] 🔵 [LuckMail] Berhasil membeli email: kevinthompson7185@outlook.de (Token: tok_8eefcd807575fb0db4d39dec6dbd72c5, ID: 1856779)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: kevinthompson7185@outlook.de                    ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:40:01] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:40:01] 🔵 Menginisialisasi engine...
+[23:40:01] 🔵 Proses pendaftaran sedang berjalan...
+[23:40:01] 🔵  [#181 | kevinthompson7185@outlook.de] Memulai... (percobaan 1/3)
+[23:40:01] 🔵  [#181 | kevinthompson7185@outlook.de] Init session
+[23:40:01] 🔵  [#261 | michaelmaldonado2884@outlook.de] CSRF ✓
+[23:40:01] 🔍  [#235 | brittanycastillo8402@outlook.de] GoPay validate-reference ✓
+[23:40:01] 🔍  [#235 | brittanycastillo8402@outlook.de] GoPay consent ✓ (OTP sent to WhatsApp)
+[23:40:01] 🔵  [#235 | brittanycastillo8402@outlook.de] Verifikasi GoPay...
+
+═══════════════════════════════════════
+  Verifikasi GoPay
+  Kode dikirim ke WhatsApp: +6281776446741
+═══════════════════════════════════════
+
+[23:40:01] 🔵  [#235 | brittanycastillo8402@outlook.de] [Auto OTP] Polling GoPay OTP dari server...
+[23:40:01] 🔵 [GoPay OTP] Subscribe OTP (Srv #8) untuk nomor: 81776446741...
+[23:40:01] 🔵  [#291 | amywalker5457@outlook.de] Sesi: Email dikirim ✓
+[23:40:01] 🔵  [#291 | amywalker5457@outlook.de] Sesi: Rute kode verifikasi
+[23:40:01] 🔵  [#291 | amywalker5457@outlook.de] Sesi: Tantangan kode...
+[23:40:01] 🔵 [#291] Waiting for OTP from LuckMail for amywalker5457@outlook.de...
+[23:40:01] 🔵 [LuckMail] Memulai pencarian OTP untuk amywalker5457@outlook.de (Token: tok_ee6b7968426421ac51ceea34ed807d32)...
+[23:40:01] 🔍 [LuckMail] Memiliki record otp sebelumnya: 735830, akan di-ignore.
+[23:40:01] 🔵 [GoPay OTP] Subscription aktif: e49a2955-7c6e-4b98-ac00-e05777420530
+[23:40:02] 🔵  [#261 | michaelmaldonado2884@outlook.de] Authorize...
+[23:40:02] 🔵  [#637 | emilycampbell5996@outlook.de] Register ✓
+[23:40:03] ✅  [#598 | austinhopkins4184@outlook.de] ChatGPT Plus ✓ (Local IP)
+[23:40:03] 🔵  [#598 | austinhopkins4184@outlook.de] Verifikasi akhir langganan API...
+[23:40:03] 🔵 [LuckMail] Berhasil membeli email: taracastaneda5475@outlook.de (Token: tok_30c5d21e452e112e4de5f75abcf31c97, ID: 1856780)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: taracastaneda5475@outlook.de                    ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:40:03] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:40:03] 🔵 Menginisialisasi engine...
+[23:40:03] 🔵 Proses pendaftaran sedang berjalan...
+[23:40:03] 🔵  [#649 | taracastaneda5475@outlook.de] Memulai... (percobaan 1/3)
+[23:40:03] 🔵  [#649 | taracastaneda5475@outlook.de] Init session
+[23:40:03] 🔍  [#634 | williamanderson3730@outlook.de] Midtrans transaction ✓
+[23:40:03] 🔵  [#825 | kathylamb9720@outlook.de] OAuth ✓
+[23:40:03] 🔵 [GoPay Queue] Granted GoPay slot to user 6276972957
+[23:40:03] ✅  [#634 | williamanderson3730@outlook.de] [Pool] Berhasil mengunci Slot #9 (81770890143)
+[23:40:03] 🔵  [#634 | williamanderson3730@outlook.de] Hubungkan GoPay (+6281770890143)...
+[23:40:03] 🔵  [#825 | kathylamb9720@outlook.de] Done ✓
+[23:40:03] ✅  [#825 | kathylamb9720@outlook.de] Account created ✓
+[23:40:03] 🔵 Proses pembayaran GoPay...
+[23:40:03] 🔵  [#825 | kathylamb9720@outlook.de] Warming up session cookies...
+[23:40:03] 🔵  [#637 | emilycampbell5996@outlook.de] OTP: waiting...
+[23:40:03] 🔵 [#637] Waiting for OTP from LuckMail for emilycampbell5996@outlook.de...
+[23:40:03] 🔵 [LuckMail] Memulai pencarian OTP untuk emilycampbell5996@outlook.de (Token: tok_81f796ca18f3fb9330d9742d271fa426)...
+[23:40:04] 🔵  [#261 | michaelmaldonado2884@outlook.de] Authorize ✓
+[23:40:04] 🔵  [#261 | michaelmaldonado2884@outlook.de] Sentinel...
+[23:40:04] 🔵  [#649 | taracastaneda5475@outlook.de] CSRF ✓
+[23:40:04] 🔵  [#649 | taracastaneda5475@outlook.de] Authorize...
+[23:40:04] 🔍  [#825 | kathylamb9720@outlook.de] Session warm-up status: 200
+[23:40:04] 🔵  [#181 | kevinthompson7185@outlook.de] CSRF ✓
+[23:40:04] 🔵 [GoPay OTP] Masih menunggu... (3s)
+[23:40:05] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (5/10)
+[23:40:05] ✅  [#634 | williamanderson3730@outlook.de] GoPay linked ✓
+[23:40:05] 🔵 Sentinel/req ✓
+[23:40:05] 🔵 Challenge: pow(d=061a80) turnstile(19812ch) so(no)
+[23:40:05] 🔵 PoW ✓ (621ch)
+[23:40:05] 🔵 VM: 85 instructions
+[23:40:05] 🔵 VM ✓ (912ch)
+[23:40:05] 🔵 Turnstile ✓ (912ch)
+[23:40:05] 🔵 Token: [p:621ch t:912ch c:1784ch flow:username_password_create]
+[23:40:05] 🔵  [#261 | michaelmaldonado2884@outlook.de] Sentinel ✓ (3417ch)
+[23:40:05] 🔵  [#261 | michaelmaldonado2884@outlook.de] Register...
+[23:40:05] 🔵  [#181 | kevinthompson7185@outlook.de] Authorize...
+[23:40:06] ✅ [LuckMail] Kode verifikasi ditemukan: 354195
+[23:40:06] 🔵  [#291 | amywalker5457@outlook.de] Sesi: Mencoba kode 354195...
+[23:40:06] 🔵  [#825 | kathylamb9720@outlook.de] Info harga...
+[23:40:06] 🔵  [#649 | taracastaneda5475@outlook.de] Authorize ✓
+[23:40:06] 🔵  [#649 | taracastaneda5475@outlook.de] Sentinel...
+[23:40:06] ⚠️  [#291 | amywalker5457@outlook.de] Sesi: Kode salah, masukkan ulang...
+[23:40:06] 🔵 [#291] Waiting for OTP from LuckMail for amywalker5457@outlook.de...
+[23:40:06] 🔵 [LuckMail] Memulai pencarian OTP untuk amywalker5457@outlook.de (Token: tok_ee6b7968426421ac51ceea34ed807d32)...
+[23:40:06] 🔍 [LuckMail] Memiliki record otp sebelumnya: 354195, akan di-ignore.
+[23:40:07] 🔍  [#825 | kathylamb9720@outlook.de] Pricing countries ✓
+[23:40:07] 🔍  [#634 | williamanderson3730@outlook.de] GoPay validate-reference ✓
+[23:40:07] 🔵 Sentinel/req ✓
+[23:40:07] 🔵 Challenge: pow(d=06969c) turnstile(20096ch) so(no)
+[23:40:07] 🔵 PoW ✓ (609ch)
+[23:40:07] 🔵 VM: 80 instructions
+[23:40:07] 🔵 VM ✓ (920ch)
+[23:40:07] 🔵 Turnstile ✓ (920ch)
+[23:40:07] 🔵 Token: [p:609ch t:920ch c:1764ch flow:username_password_create]
+[23:40:07] 🔵  [#649 | taracastaneda5475@outlook.de] Sentinel ✓ (3393ch)
+[23:40:07] 🔵  [#649 | taracastaneda5475@outlook.de] Register...
+[23:40:07] 🔵  [#181 | kevinthompson7185@outlook.de] Authorize ✓
+[23:40:07] 🔵  [#181 | kevinthompson7185@outlook.de] Sentinel...
+[23:40:07] 🔵  [#261 | michaelmaldonado2884@outlook.de] Register ✓
+[23:40:07] 🔍  [#825 | kathylamb9720@outlook.de] Pricing config ✓
+[23:40:07] 🔵  [#825 | kathylamb9720@outlook.de] Sesi checkout...
+[23:40:07] 🔵  [#825 | kathylamb9720@outlook.de] Sesi checkout (via ErdogAI)...
+[23:40:07] 🔍  [#634 | williamanderson3730@outlook.de] GoPay consent ✓ (OTP sent to WhatsApp)
+[23:40:07] 🔵  [#634 | williamanderson3730@outlook.de] Verifikasi GoPay...
+
+═══════════════════════════════════════
+  Verifikasi GoPay
+  Kode dikirim ke WhatsApp: +6281770890143
+═══════════════════════════════════════
+
+[23:40:07] 🔵  [#634 | williamanderson3730@outlook.de] [Auto OTP] Polling GoPay OTP dari server...
+[23:40:07] 🔵 [GoPay OTP] Subscribe OTP (Srv #9) untuk nomor: 81770890143...
+[23:40:07] 🔵 [GoPay OTP] Subscription aktif: 26a07a8d-9ee3-485a-b32d-38426bbb7709
+[23:40:07] ✅  [#598 | austinhopkins4184@outlook.de] Subscription: ChatGPT Plus ✓ (Account Verified - Local IP)
+[23:40:07] 🔍  [#598 | austinhopkins4184@outlook.de] Warning: Gagal report winrate ke OTP Server: Request failed with status code 404
+[23:40:07] ✅ Autopay sukses untuk austinhopkins4184@outlook.de
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:40:07] 🔵 [Bot] Akun Plus ke-3/50 berhasil (6276972957)
+[23:40:07] 🔵 [Pool] Selesai/Release slot untuk task task_7_1777653517172 (User 6276972957)
+[23:40:07] 🔵 [Pool] Menjalankan task task_22_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:40:07] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:40:07] ✅ [GoPay OTP] Kode ditemukan: 868460
+[23:40:07] 🔍  [#235 | brittanycastillo8402@outlook.de] OTP entered: 868460
+[23:40:08] 🔍  [#235 | brittanycastillo8402@outlook.de] GoPay OTP validated ✓
+[23:40:08] 🔵  [#261 | michaelmaldonado2884@outlook.de] OTP: waiting...
+[23:40:08] 🔵 [#261] Waiting for OTP from LuckMail for michaelmaldonado2884@outlook.de...
+[23:40:08] 🔵 [LuckMail] Memulai pencarian OTP untuk michaelmaldonado2884@outlook.de (Token: tok_64361c37fc82c202061da2ad9ef2bafb)...
+[23:40:08] ✅ [LuckMail] Kode verifikasi ditemukan: 760693
+[23:40:08] 🔵  [#637 | emilycampbell5996@outlook.de] OTP ✓ (760693)
+[23:40:08] 🔍  [#235 | brittanycastillo8402@outlook.de] GoPay PIN page ✓
+[23:40:08] 🔵 Sentinel/req ✓
+[23:40:08] 🔵 Challenge: pow(d=06b554) turnstile(19112ch) so(no)
+[23:40:08] 🔵 PoW ✓ (585ch)
+[23:40:08] 🔵 VM: 84 instructions
+[23:40:08] 🔵 VM ✓ (860ch)
+[23:40:08] 🔵 Turnstile ✓ (860ch)
+[23:40:08] 🔵 Token: [p:585ch t:860ch c:1720ch flow:username_password_create]
+[23:40:08] 🔵  [#181 | kevinthompson7185@outlook.de] Sentinel ✓ (3265ch)
+[23:40:08] 🔵  [#181 | kevinthompson7185@outlook.de] Register...
+[23:40:08] 🔍  [#235 | brittanycastillo8402@outlook.de] GoPay PIN verified ✓
+[23:40:08] ✅  [#235 | brittanycastillo8402@outlook.de] GoPay linking done ✓
+[23:40:08] ⚠️  [#637 | emilycampbell5996@outlook.de] OTP Validate: Wrong code. Please check it and try again. — Register sudahh selesai, menyerahkan ke Recovery Login Flow.
+[23:40:08] 🔵 [#637] Recovery: Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang...
+[23:40:08] 🔵  [#637 | emilycampbell5996@outlook.de] Autentikasi...
+[23:40:08] 🔵  [#637 | emilycampbell5996@outlook.de] Sesi: CSRF ✓
+[23:40:09] 🔵  [#637 | emilycampbell5996@outlook.de] Sesi: URL otorisasi ✓
+[23:40:09] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (6/10)
+[23:40:09] 🔵 [LuckMail] Berhasil membeli email: margaretmccormick2311@outlook.de (Token: tok_926ad39de6d727f9a3f647cd3ccafcb5, ID: 1856785)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: margaretmccormick2311@outlook.de                ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:40:09] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:40:09] 🔵 Menginisialisasi engine...
+[23:40:09] 🔵 Proses pendaftaran sedang berjalan...
+[23:40:09] 🔵  [#736 | margaretmccormick2311@outlook.de] Memulai... (percobaan 1/3)
+[23:40:09] 🔵  [#736 | margaretmccormick2311@outlook.de] Init session
+[23:40:09] 🔍 [LuckMail] Mendapatkan kode OTP 354195 tapi ini adalah kode lama. Melanjutkan polling... (1/10)
+[23:40:10] 🔵  [#181 | kevinthompson7185@outlook.de] Register ✓
+[23:40:10] 🔵  [#649 | taracastaneda5475@outlook.de] Register ✓
+[23:40:10] 🔵  [#181 | kevinthompson7185@outlook.de] OTP: waiting...
+[23:40:10] 🔵 [#181] Waiting for OTP from LuckMail for kevinthompson7185@outlook.de...
+[23:40:10] 🔵 [LuckMail] Memulai pencarian OTP untuk kevinthompson7185@outlook.de (Token: tok_8eefcd807575fb0db4d39dec6dbd72c5)...
+[23:40:10] 🔵 [GoPay OTP] Masih menunggu... (3s)
+[23:40:10] 🔵  [#649 | taracastaneda5475@outlook.de] OTP: waiting...
+[23:40:10] 🔵 [#649] Waiting for OTP from LuckMail for taracastaneda5475@outlook.de...
+[23:40:10] 🔵 [LuckMail] Memulai pencarian OTP untuk taracastaneda5475@outlook.de (Token: tok_30c5d21e452e112e4de5f75abcf31c97)...
+[23:40:11] 🔵  [#736 | margaretmccormick2311@outlook.de] CSRF ✓
+[23:40:11] 🔵  [#637 | emilycampbell5996@outlook.de] Sesi: Auth aktif ✓
+[23:40:11] 🔵  [#736 | margaretmccormick2311@outlook.de] Authorize...
+[23:40:13] ✅ [LuckMail] Kode verifikasi ditemukan: 077285
+[23:40:13] 🔵  [#261 | michaelmaldonado2884@outlook.de] OTP ✓ (077285)
+[23:40:13] ✅  [#825 | kathylamb9720@outlook.de] Checkout ✓ (Japan)
+[23:40:13] 🔵  [#825 | kathylamb9720@outlook.de] Inisiasi pembayaran...
+[23:40:13] 🔵  [#235 | brittanycastillo8402@outlook.de] Proses pembayaran GoPay...
+[23:40:13] ✅ [GoPay OTP] Kode ditemukan: 066251
+[23:40:13] 🔍  [#634 | williamanderson3730@outlook.de] OTP entered: 066251
+[23:40:13] 🔵  [#736 | margaretmccormick2311@outlook.de] Authorize ✓
+[23:40:13] 🔵  [#736 | margaretmccormick2311@outlook.de] Sentinel...
+[23:40:13] ✅  [#235 | brittanycastillo8402@outlook.de] Charge initiated ✓
+[23:40:13] 🔍  [#825 | kathylamb9720@outlook.de] Stripe session ✓
+[23:40:14] 🔍  [#235 | brittanycastillo8402@outlook.de] Payment validated ✓
+[23:40:14] 🔵 Sentinel/req ✓
+[23:40:14] 🔵 Challenge: pow(d=076cfd) turnstile(24240ch) so(yes)
+[23:40:14] 🔵 PoW ✓ (569ch)
+[23:40:14] 🔵 VM: 80 instructions
+[23:40:14] 🔵 VM ✓ (984ch)
+[23:40:14] 🔵 Turnstile ✓ (984ch)
+[23:40:14] 🔵 Token: [p:569ch t:984ch c:2232ch flow:authorize_continue]
+[23:40:14] 🔍  [#235 | brittanycastillo8402@outlook.de] Payment confirmed ✓
+[23:40:14] 🔍  [#235 | brittanycastillo8402@outlook.de] Charge PIN challenge: 61dfd037...
+[23:40:14] 🔵  [#261 | michaelmaldonado2884@outlook.de] Finalizing...
+[23:40:14] 🔍  [#235 | brittanycastillo8402@outlook.de] Charge PIN verified ✓
+[23:40:14] ✅ [LuckMail] Kode verifikasi ditemukan: 226068
+[23:40:14] 🔵  [#291 | amywalker5457@outlook.de] Sesi: Mencoba kode 226068...
+[23:40:14] 🔍  [#634 | williamanderson3730@outlook.de] GoPay OTP validated ✓
+[23:40:14] ✅  [#235 | brittanycastillo8402@outlook.de] Payment processed ✓
+[23:40:14] ✅ [LuckMail] Kode verifikasi ditemukan: 056721
+[23:40:14] 🔵  [#181 | kevinthompson7185@outlook.de] OTP ✓ (056721)
+[23:40:15] 🔵 Sentinel/req ✓
+[23:40:15] 🔵 Challenge: pow(d=06a45f) turnstile(20588ch) so(no)
+[23:40:15] 🔵 PoW ✓ (581ch)
+[23:40:15] 🔵 VM: 90 instructions
+[23:40:15] 🔵 VM ✓ (940ch)
+[23:40:15] 🔵 Turnstile ✓ (940ch)
+[23:40:15] 🔵 Token: [p:581ch t:940ch c:1784ch flow:username_password_create]
+[23:40:15] 🔵  [#736 | margaretmccormick2311@outlook.de] Sentinel ✓ (3405ch)
+[23:40:15] 🔵  [#736 | margaretmccormick2311@outlook.de] Register...
+[23:40:15] 🔵  [#291 | amywalker5457@outlook.de] Sesi: Kode ✓
+[23:40:15] 🔵  [#637 | emilycampbell5996@outlook.de] Sesi: Email dikirim ✓
+[23:40:15] 🔵  [#637 | emilycampbell5996@outlook.de] Sesi: Rute kode verifikasi
+[23:40:15] 🔵  [#637 | emilycampbell5996@outlook.de] Sesi: Tantangan kode...
+[23:40:15] 🔵 [#637] Waiting for OTP from LuckMail for emilycampbell5996@outlook.de...
+[23:40:15] 🔵 [LuckMail] Memulai pencarian OTP untuk emilycampbell5996@outlook.de (Token: tok_81f796ca18f3fb9330d9742d271fa426)...
+[23:40:15] 🔍 [LuckMail] Memiliki record otp sebelumnya: 760693, akan di-ignore.
+[23:40:15] ⚠️  [#181 | kevinthompson7185@outlook.de] OTP Validate: Wrong code. Please check it and try again. — Register sudahh selesai, menyerahkan ke Recovery Login Flow.
+[23:40:15] 🔵 [#181] Recovery: Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang...
+[23:40:15] 🔵  [#181 | kevinthompson7185@outlook.de] Autentikasi...
+[23:40:15] 🔵  [#181 | kevinthompson7185@outlook.de] Sesi: CSRF ✓
+[23:40:15] 🔍  [#825 | kathylamb9720@outlook.de] Stripe init ✓ (checksum: cRGoH5uHYp...)
+[23:40:15] 🔵 Sentinel/req ✓
+[23:40:15] 🔵 Challenge: pow(d=0668c7) turnstile(20864ch) so(yes)
+[23:40:15] 🔵 PoW ✓ (581ch)
+[23:40:15] 🔵 VM: 90 instructions
+[23:40:15] 🔵 VM ✓ (916ch)
+[23:40:15] 🔵 Turnstile ✓ (916ch)
+[23:40:15] 🔵 Token: [p:581ch t:916ch c:2084ch flow:oauth_create_account]
+[23:40:15] ✅ [LuckMail] Kode verifikasi ditemukan: 427831
+[23:40:15] 🔵  [#649 | taracastaneda5475@outlook.de] OTP ✓ (427831)
+[23:40:15] 🔵  [#181 | kevinthompson7185@outlook.de] Sesi: URL otorisasi ✓
+[23:40:16] ⚠️  [#649 | taracastaneda5475@outlook.de] OTP Validate: Wrong code. Please check it and try again. — Register sudahh selesai, menyerahkan ke Recovery Login Flow.
+[23:40:16] 🔵 [#649] Recovery: Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang...
+[23:40:16] 🔵  [#649 | taracastaneda5475@outlook.de] Autentikasi...
+[23:40:16] 🔍  [#634 | williamanderson3730@outlook.de] GoPay PIN page ✓
+[23:40:16] 🔵  [#649 | taracastaneda5475@outlook.de] Sesi: CSRF ✓
+[23:40:16] 🔵  [#649 | taracastaneda5475@outlook.de] Sesi: URL otorisasi ✓
+[23:40:16] 🔵  [#736 | margaretmccormick2311@outlook.de] Register ✓
+[23:40:16] 🔍  [#634 | williamanderson3730@outlook.de] GoPay PIN verified ✓
+[23:40:17] 🔵  [#736 | margaretmccormick2311@outlook.de] OTP: waiting...
+[23:40:17] 🔵 [#736] Waiting for OTP from LuckMail for margaretmccormick2311@outlook.de...
+[23:40:17] 🔵 [LuckMail] Memulai pencarian OTP untuk margaretmccormick2311@outlook.de (Token: tok_926ad39de6d727f9a3f647cd3ccafcb5)...
+[23:40:17] ⚠️  [#825 | kathylamb9720@outlook.de] Autopay gagal [Checkout]: Request failed with status code 502
+[23:40:17] ⚠️ Autopay gagal: [Checkout] Request failed with status code 502
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:40:17] ⚠️ [Bot] Task failed, re-queuing replacement for 6276972957 (10/50 retries used, 40 left)
+[23:40:17] 🔵 [Pool] Selesai/Release slot untuk task task_17_1777653517172 (User 6276972957)
+[23:40:17] 🔵 [Pool] Menjalankan task task_23_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:40:17] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:40:17] 🔵  [#181 | kevinthompson7185@outlook.de] Sesi: Auth aktif ✓
+[23:40:17] ✅  [#634 | williamanderson3730@outlook.de] GoPay linking done ✓
+[23:40:17] 🔵  [#649 | taracastaneda5475@outlook.de] Sesi: Auth aktif ✓
+[23:40:18] 🔵 Sentinel/req ✓
+[23:40:18] 🔵 Challenge: pow(d=068b34) turnstile(22680ch) so(yes)
+[23:40:18] 🔵 PoW ✓ (577ch)
+[23:40:18] 🔵 VM: 76 instructions
+[23:40:18] 🔵 VM ✓ (908ch)
+[23:40:18] 🔵 Turnstile ✓ (908ch)
+[23:40:18] 🔵 Token: [p:577ch t:908ch c:2104ch flow:authorize_continue]
+[23:40:18] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (7/10)
+[23:40:18] 🔵 [LuckMail] Berhasil membeli email: josephlambert6440@outlook.de (Token: tok_7bb6e25a6d76eed6b83021376fe8eeed, ID: 1856790)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: josephlambert6440@outlook.de                    ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:40:18] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:40:18] 🔵 Menginisialisasi engine...
+[23:40:18] 🔵 Proses pendaftaran sedang berjalan...
+[23:40:18] 🔵  [#175 | josephlambert6440@outlook.de] Memulai... (percobaan 1/3)
+[23:40:18] 🔵  [#175 | josephlambert6440@outlook.de] Init session
+[23:40:19] ✅ [LuckMail] Kode verifikasi ditemukan: 801634
+[23:40:19] 🔵  [#637 | emilycampbell5996@outlook.de] Sesi: Mencoba kode 801634...
+[23:40:19] ⚠️  [#637 | emilycampbell5996@outlook.de] Sesi: Kode salah, masukkan ulang...
+[23:40:19] 🔵 [#637] Waiting for OTP from LuckMail for emilycampbell5996@outlook.de...
+[23:40:19] 🔵 [LuckMail] Memulai pencarian OTP untuk emilycampbell5996@outlook.de (Token: tok_81f796ca18f3fb9330d9742d271fa426)...
+[23:40:19] 🔍 [LuckMail] Memiliki record otp sebelumnya: 801634, akan di-ignore.
+[23:40:19] 🔵 Sentinel/req ✓
+[23:40:19] 🔵 Challenge: pow(d=07816c) turnstile(22152ch) so(yes)
+[23:40:19] 🔵 PoW ✓ (561ch)
+[23:40:19] 🔵 VM: 87 instructions
+[23:40:19] 🔵 VM ✓ (956ch)
+[23:40:19] 🔵 Turnstile ✓ (956ch)
+[23:40:19] 🔵 Token: [p:561ch t:956ch c:2168ch flow:authorize_continue]
+[23:40:19] 🔵  [#649 | taracastaneda5475@outlook.de] Sesi: Email dikirim ✓
+[23:40:19] 🔵  [#649 | taracastaneda5475@outlook.de] Sesi: Rute kode verifikasi
+[23:40:19] 🔵  [#649 | taracastaneda5475@outlook.de] Sesi: Tantangan kode...
+[23:40:19] 🔵 [#649] Waiting for OTP from LuckMail for taracastaneda5475@outlook.de...
+[23:40:19] 🔵 [LuckMail] Memulai pencarian OTP untuk taracastaneda5475@outlook.de (Token: tok_30c5d21e452e112e4de5f75abcf31c97)...
+[23:40:19] 🔍 [LuckMail] Memiliki record otp sebelumnya: 427831, akan di-ignore.
+[23:40:20] 🔵  [#261 | michaelmaldonado2884@outlook.de] OAuth callback...
+[23:40:20] 🔵  [#175 | josephlambert6440@outlook.de] CSRF ✓
+[23:40:20] 🔵  [#181 | kevinthompson7185@outlook.de] Sesi: Email dikirim ✓
+[23:40:20] 🔵  [#181 | kevinthompson7185@outlook.de] Sesi: Rute kode verifikasi
+[23:40:20] 🔵  [#181 | kevinthompson7185@outlook.de] Sesi: Tantangan kode...
+[23:40:20] 🔵 [#181] Waiting for OTP from LuckMail for kevinthompson7185@outlook.de...
+[23:40:20] 🔵 [LuckMail] Memulai pencarian OTP untuk kevinthompson7185@outlook.de (Token: tok_8eefcd807575fb0db4d39dec6dbd72c5)...
+[23:40:20] 🔍 [LuckMail] Memiliki record otp sebelumnya: 056721, akan di-ignore.
+[23:40:20] 🔵  [#175 | josephlambert6440@outlook.de] Authorize...
+[23:40:21] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (8/10)
+[23:40:21] ⚠️  [#291 | amywalker5457@outlook.de] Autopay gagal [Login]: Access token gagal didapat
+[23:40:21] 🚫 Recovery gagal: [Login] Access token gagal didapat
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:40:21] ⚠️ [Bot] Task failed, re-queuing replacement for 6276972957 (11/50 retries used, 39 left)
+[23:40:21] 🔵 [Pool] Selesai/Release slot untuk task task_16_1777653517172 (User 6276972957)
+[23:40:21] 🔵 [Pool] Menjalankan task task_24_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:40:21] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:40:22] 🔵 [LuckMail] Berhasil membeli email: cynthiarodriguez7080@outlook.de (Token: tok_7cc084a81051951ebea109437b12f827, ID: 1856795)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: cynthiarodriguez7080@outlook.de                 ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:40:22] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:40:22] 🔵 Menginisialisasi engine...
+[23:40:22] 🔵 Proses pendaftaran sedang berjalan...
+[23:40:22] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Memulai... (percobaan 1/3)
+[23:40:22] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Init session
+[23:40:22] ✅ [LuckMail] Kode verifikasi ditemukan: 574496
+[23:40:22] 🔵  [#736 | margaretmccormick2311@outlook.de] OTP ✓ (574496)
+[23:40:22] 🔵  [#634 | williamanderson3730@outlook.de] Proses pembayaran GoPay...
+[23:40:22] 🔵  [#175 | josephlambert6440@outlook.de] Authorize ✓
+[23:40:22] 🔵  [#175 | josephlambert6440@outlook.de] Sentinel...
+[23:40:22] ⚠️  [#736 | margaretmccormick2311@outlook.de] OTP Validate: Wrong code. Please check it and try again. — Register ssudah selesai, menyerahkan ke Recovery Login Flow.
+[23:40:22] 🔵 [#736] Recovery: Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang...
+[23:40:22] 🔵  [#736 | margaretmccormick2311@outlook.de] Autentikasi...
+[23:40:23] 🔵  [#736 | margaretmccormick2311@outlook.de] Sesi: CSRF ✓
+[23:40:23] ✅  [#634 | williamanderson3730@outlook.de] Charge initiated ✓
+[23:40:23] 🔍 [LuckMail] Mendapatkan kode OTP 801634 tapi ini adalah kode lama. Melanjutkan polling... (1/10)
+[23:40:23] 🔵  [#736 | margaretmccormick2311@outlook.de] Sesi: URL otorisasi ✓
+[23:40:23] 🔍  [#634 | williamanderson3730@outlook.de] Payment validated ✓
+[23:40:23] 🔵 Sentinel/req ✓
+[23:40:23] 🔵 Challenge: pow(d=07a120) turnstile(21304ch) so(no)
+[23:40:23] 🔵 PoW ✓ (589ch)
+[23:40:23] 🔵 VM: 80 instructions
+[23:40:23] 🔵 VM ✓ (908ch)
+[23:40:23] 🔵 Turnstile ✓ (908ch)
+[23:40:23] 🔵 Token: [p:589ch t:908ch c:1848ch flow:username_password_create]
+[23:40:23] 🔵  [#175 | josephlambert6440@outlook.de] Sentinel ✓ (3445ch)
+[23:40:23] 🔵  [#175 | josephlambert6440@outlook.de] Register...
+[23:40:23] ✅ [LuckMail] Kode verifikasi ditemukan: 017353
+[23:40:23] 🔵  [#181 | kevinthompson7185@outlook.de] Sesi: Mencoba kode 017353...
+[23:40:24] 🔍  [#634 | williamanderson3730@outlook.de] Payment confirmed ✓
+[23:40:24] 🔍  [#634 | williamanderson3730@outlook.de] Charge PIN challenge: 200033dc...
+[23:40:24] 🔵  [#235 | brittanycastillo8402@outlook.de] Cek penyelesaian...
+[23:40:24] ✅ [LuckMail] Kode verifikasi ditemukan: 096670
+[23:40:24] 🔵  [#649 | taracastaneda5475@outlook.de] Sesi: Mencoba kode 096670...
+[23:40:24] 🔍  [#235 | brittanycastillo8402@outlook.de] Status: settlement [1/12]
+[23:40:24] ✅  [#235 | brittanycastillo8402@outlook.de] Settlement ✓
+[23:40:24] 🔵  [#235 | brittanycastillo8402@outlook.de] Pembayaran selesai, merilis slot GoPay lebih awal untuk di-reset...   
+[23:40:24] 🔵  [#181 | kevinthompson7185@outlook.de] Sesi: Kode ✓
+[23:40:24] 🔵  [#235 | brittanycastillo8402@outlook.de] Verifikasi checkout...
+[23:40:24] ⚠️  [#649 | taracastaneda5475@outlook.de] Sesi: Kode salah, masukkan ulang...
+[23:40:24] 🔵 [#649] Waiting for OTP from LuckMail for taracastaneda5475@outlook.de...
+[23:40:24] 🔵 [LuckMail] Memulai pencarian OTP untuk taracastaneda5475@outlook.de (Token: tok_30c5d21e452e112e4de5f75abcf31c97)...
+[23:40:24] 🔍 [LuckMail] Memiliki record otp sebelumnya: 096670, akan di-ignore.
+[23:40:24] 🔍  [#634 | williamanderson3730@outlook.de] Charge PIN verified ✓
+[23:40:24] 🔵  [#736 | margaretmccormick2311@outlook.de] Sesi: Auth aktif ✓
+[23:40:24] 🔍  [#235 | brittanycastillo8402@outlook.de] Checkout verify ✓ (Local IP)
+[23:40:25] ✅  [#634 | williamanderson3730@outlook.de] Payment processed ✓
+[23:40:25] 🔵  [#175 | josephlambert6440@outlook.de] Register ✓
+[23:40:26] 🔵  [#442 | cynthiarodriguez7080@outlook.de] CSRF ✓
+[23:40:26] 🔵  [#175 | josephlambert6440@outlook.de] OTP: waiting...
+[23:40:26] 🔵 [#175] Waiting for OTP from LuckMail for josephlambert6440@outlook.de...
+[23:40:26] 🔵 [LuckMail] Memulai pencarian OTP untuk josephlambert6440@outlook.de (Token: tok_7bb6e25a6d76eed6b83021376fe8eeed)...
+[23:40:26] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Authorize...
+[23:40:27] 🔵 Sentinel/req ✓
+[23:40:27] 🔵 Challenge: pow(d=06b1a1) turnstile(19688ch) so(yes)
+[23:40:27] 🔵 PoW ✓ (621ch)
+[23:40:27] 🔵 VM: 77 instructions
+[23:40:27] 🔵 VM ✓ (944ch)
+[23:40:27] 🔵 Turnstile ✓ (944ch)
+[23:40:27] 🔵 Token: [p:621ch t:944ch c:2276ch flow:authorize_continue]
+[23:40:27] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (9/10)
+[23:40:28] ✅  [#235 | brittanycastillo8402@outlook.de] ChatGPT Plus ✓ (Local IP)
+[23:40:28] 🔵  [#235 | brittanycastillo8402@outlook.de] Verifikasi akhir langganan API...
+[23:40:28] 🔵  [#736 | margaretmccormick2311@outlook.de] Sesi: Email dikirim ✓
+[23:40:28] 🔵  [#736 | margaretmccormick2311@outlook.de] Sesi: Rute kode verifikasi
+[23:40:28] 🔵  [#736 | margaretmccormick2311@outlook.de] Sesi: Tantangan kode...
+[23:40:28] 🔵 [#736] Waiting for OTP from LuckMail for margaretmccormick2311@outlook.de...
+[23:40:28] 🔵 [LuckMail] Memulai pencarian OTP untuk margaretmccormick2311@outlook.de (Token: tok_926ad39de6d727f9a3f647cd3ccafcb5)...
+[23:40:28] 🔍 [LuckMail] Memiliki record otp sebelumnya: 574496, akan di-ignore.
+[23:40:28] ✅ [LuckMail] Kode verifikasi ditemukan: 370694
+[23:40:28] 🔵  [#637 | emilycampbell5996@outlook.de] Sesi: Mencoba kode 370694...
+[23:40:28] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Authorize ✓
+[23:40:28] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Sentinel...
+[23:40:28] 🔍 [LuckMail] Mendapatkan kode OTP 096670 tapi ini adalah kode lama. Melanjutkan polling... (1/10)
+[23:40:29] 🔵  [#637 | emilycampbell5996@outlook.de] Sesi: Kode ✓
+[23:40:29] 🔵 Sentinel/req ✓
+[23:40:29] 🔵 Challenge: pow(d=068bb3) turnstile(22056ch) so(no)
+[23:40:29] 🔵 PoW ✓ (609ch)
+[23:40:29] 🔵 VM: 83 instructions
+[23:40:29] 🔵 VM ✓ (928ch)
+[23:40:29] 🔵 Turnstile ✓ (928ch)
+[23:40:29] 🔵 Token: [p:609ch t:928ch c:1784ch flow:username_password_create]
+[23:40:29] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Sentinel ✓ (3421ch)
+[23:40:29] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Register...
+[23:40:30] 🔵  [#261 | michaelmaldonado2884@outlook.de] OAuth ✓
+[23:40:30] 🔵  [#261 | michaelmaldonado2884@outlook.de] Done ✓
+[23:40:30] ✅  [#261 | michaelmaldonado2884@outlook.de] Account created ✓
+[23:40:30] 🔵 Proses pembayaran GoPay...
+[23:40:30] 🔵  [#261 | michaelmaldonado2884@outlook.de] Warming up session cookies...
+[23:40:31] ⚠️  [#181 | kevinthompson7185@outlook.de] Autopay gagal [Login]: Access token gagal didapat
+[23:40:31] 🚫 Recovery gagal: [Login] Access token gagal didapat
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:40:31] ⚠️ [Bot] Task failed, re-queuing replacement for 6276972957 (12/50 retries used, 38 left)
+[23:40:31] 🔵 [Pool] Selesai/Release slot untuk task task_20_1777653517172 (User 6276972957)
+[23:40:31] 🔵 [Pool] Menjalankan task task_25_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:40:31] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:40:31] ✅ [LuckMail] Kode verifikasi ditemukan: 096090
+[23:40:31] 🔵  [#175 | josephlambert6440@outlook.de] OTP ✓ (096090)
+[23:40:31] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Register ✓
+[23:40:31] 🔍  [#261 | michaelmaldonado2884@outlook.de] Session warm-up status: 200
+[23:40:31] ⚠️  [#175 | josephlambert6440@outlook.de] OTP Validate: Wrong code. Please check it and try again. — Register sudahh selesai, menyerahkan ke Recovery Login Flow.
+[23:40:31] 🔵 [#175] Recovery: Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang...
+[23:40:31] 🔵  [#175 | josephlambert6440@outlook.de] Autentikasi...
+[23:40:31] 🔵  [#442 | cynthiarodriguez7080@outlook.de] OTP: waiting...
+[23:40:31] 🔵 [#442] Waiting for OTP from LuckMail for cynthiarodriguez7080@outlook.de...
+[23:40:31] 🔵 [LuckMail] Memulai pencarian OTP untuk cynthiarodriguez7080@outlook.de (Token: tok_7cc084a81051951ebea109437b12f827)...
+[23:40:32] ✅ [LuckMail] Kode verifikasi ditemukan: 592861
+[23:40:32] 🔵  [#736 | margaretmccormick2311@outlook.de] Sesi: Mencoba kode 592861...
+[23:40:32] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (10/10)
+[23:40:32] ⚠️ [LuckMail] Timeout 20 detik tercapai. OTP baru tidak ditemukan untuk donnamurray2273@outlook.de.
+[23:40:32] ⚠️  [#431 | donnamurray2273@outlook.de] Sesi: Kode kosong, coba lagi...
+[23:40:32] 🔵 [#431] Waiting for OTP from LuckMail for donnamurray2273@outlook.de...
+[23:40:32] 🔵 [LuckMail] Memulai pencarian OTP untuk donnamurray2273@outlook.de (Token: tok_b16725c4240e446ab81e6edcde65e4f3)...
+[23:40:32] 🔍 [LuckMail] Memiliki record otp sebelumnya: 690100, akan di-ignore.
+[23:40:32] 🔵 [LuckMail] Berhasil membeli email: mrjohn7427@outlook.de (Token: tok_46fb15b141973491a552704a32ee0835, ID: 1856804)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: mrjohn7427@outlook.de                           ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:40:32] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:40:32] 🔵 Menginisialisasi engine...
+[23:40:32] 🔵 Proses pendaftaran sedang berjalan...
+[23:40:32] 🔵  [#701 | mrjohn7427@outlook.de] Memulai... (percobaan 1/3)
+[23:40:32] 🔵  [#701 | mrjohn7427@outlook.de] Init session
+[23:40:32] ⚠️  [#736 | margaretmccormick2311@outlook.de] Sesi: Kode salah, masukkan ulang...
+[23:40:32] 🔵 [#736] Waiting for OTP from LuckMail for margaretmccormick2311@outlook.de...
+[23:40:32] 🔵 [LuckMail] Memulai pencarian OTP untuk margaretmccormick2311@outlook.de (Token: tok_926ad39de6d727f9a3f647cd3ccafcb5)...
+[23:40:32] 🔍 [LuckMail] Memiliki record otp sebelumnya: 592861, akan di-ignore.
+[23:40:32] ✅ [LuckMail] Kode verifikasi ditemukan: 432193
+[23:40:32] 🔵  [#649 | taracastaneda5475@outlook.de] Sesi: Mencoba kode 432193...
+[23:40:32] ✅  [#235 | brittanycastillo8402@outlook.de] Subscription: ChatGPT Plus ✓ (Account Verified - Local IP)
+[23:40:33] 🔍  [#235 | brittanycastillo8402@outlook.de] Warning: Gagal report winrate ke OTP Server: Request failed with status code 404
+[23:40:33] ✅ Autopay sukses untuk brittanycastillo8402@outlook.de
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:40:33] 🔵 [Bot] Akun Plus ke-4/50 berhasil (6276972957)
+[23:40:33] 🔵 [Pool] Selesai/Release slot untuk task task_13_1777653517172 (User 6276972957)
+[23:40:33] 🔵 [Pool] Menjalankan task task_26_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:40:33] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:40:33] 🔵  [#261 | michaelmaldonado2884@outlook.de] Info harga...
+[23:40:33] 🔵  [#175 | josephlambert6440@outlook.de] Sesi: CSRF ✓
+[23:40:33] 🔵  [#649 | taracastaneda5475@outlook.de] Sesi: Kode ✓
+[23:40:33] 🔵  [#175 | josephlambert6440@outlook.de] Sesi: URL otorisasi ✓
+[23:40:34] ⚠️  [#637 | emilycampbell5996@outlook.de] Autopay gagal [Login]: Access token gagal didapat
+[23:40:34] 🚫 Recovery gagal: [Login] Access token gagal didapat
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:40:34] ⚠️ [Bot] Task failed, re-queuing replacement for 6276972957 (13/50 retries used, 37 left)
+[23:40:34] 🔵 [Pool] Selesai/Release slot untuk task task_18_1777653517172 (User 6276972957)
+[23:40:34] 🔵 [Pool] Menjalankan task task_27_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:40:34] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:40:34] 🔍  [#261 | michaelmaldonado2884@outlook.de] Pricing countries ✓
+[23:40:34] 🔵 [LuckMail] Berhasil membeli email: kellyowens8240@outlook.de (Token: tok_592b61b93ad674a7bb5af34df8356359, ID: 1856807)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: kellyowens8240@outlook.de                       ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:40:34] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:40:34] 🔵 Menginisialisasi engine...
+[23:40:34] 🔵 Proses pendaftaran sedang berjalan...
+[23:40:34] 🔵  [#923 | kellyowens8240@outlook.de] Memulai... (percobaan 1/3)
+[23:40:34] 🔵  [#923 | kellyowens8240@outlook.de] Init session
+[23:40:34] 🔍  [#261 | michaelmaldonado2884@outlook.de] Pricing config ✓
+[23:40:34] 🔵  [#261 | michaelmaldonado2884@outlook.de] Sesi checkout...
+[23:40:34] 🔵  [#261 | michaelmaldonado2884@outlook.de] Sesi checkout (via ErdogAI)...
+[23:40:35] 🔍 [LuckMail] Mendapatkan kode OTP 592861 tapi ini adalah kode lama. Melanjutkan polling... (1/10)
+[23:40:35] 🔵  [#634 | williamanderson3730@outlook.de] Cek penyelesaian...
+[23:40:35] 🔵 [LuckMail] Berhasil membeli email: juliesimmons8746@outlook.de (Token: tok_8cdfac6df6f00b18670f53a3d832f556, ID: 1856808)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: juliesimmons8746@outlook.de                     ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:40:35] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:40:35] 🔵 Menginisialisasi engine...
+[23:40:35] 🔵 Proses pendaftaran sedang berjalan...
+[23:40:35] 🔵  [#864 | juliesimmons8746@outlook.de] Memulai... (percobaan 1/3)
+[23:40:35] 🔵  [#864 | juliesimmons8746@outlook.de] Init session
+[23:40:36] 🔍  [#634 | williamanderson3730@outlook.de] Status: settlement [1/12]
+[23:40:36] ✅  [#634 | williamanderson3730@outlook.de] Settlement ✓
+[23:40:36] 🔵  [#634 | williamanderson3730@outlook.de] Pembayaran selesai, merilis slot GoPay lebih awal untuk di-reset...    
+[23:40:36] 🔵  [#923 | kellyowens8240@outlook.de] CSRF ✓
+[23:40:36] 🔵  [#701 | mrjohn7427@outlook.de] CSRF ✓
+[23:40:36] 🔵  [#634 | williamanderson3730@outlook.de] Verifikasi checkout...
+[23:40:36] 🔵  [#175 | josephlambert6440@outlook.de] Sesi: Auth aktif ✓
+[23:40:36] 🔍  [#634 | williamanderson3730@outlook.de] Checkout verify ✓ (Local IP)
+[23:40:36] 🔵  [#923 | kellyowens8240@outlook.de] Authorize...
+[23:40:36] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (1/10)
+[23:40:36] ✅ [LuckMail] Kode verifikasi ditemukan: 798924
+[23:40:36] 🔵  [#442 | cynthiarodriguez7080@outlook.de] OTP ✓ (798924)
+[23:40:36] 🔵  [#701 | mrjohn7427@outlook.de] Authorize...
+[23:40:37] ⚠️  [#442 | cynthiarodriguez7080@outlook.de] OTP Validate: Wrong code. Please check it and try again. — Register suudah selesai, menyerahkan ke Recovery Login Flow.
+[23:40:37] 🔵 [#442] Recovery: Register ✓ tapi OTP gagal/timeout. Mencoba login & verifikasi ulang...
+[23:40:37] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Autentikasi...
+[23:40:38] 🔵 Sentinel/req ✓
+[23:40:38] 🔵 Challenge: pow(d=07a120) turnstile(19588ch) so(yes)
+[23:40:38] 🔵 PoW ✓ (569ch)
+[23:40:38] 🔵 VM: 82 instructions
+[23:40:38] 🔵 VM ✓ (940ch)
+[23:40:38] 🔵 Turnstile ✓ (940ch)
+[23:40:38] 🔵 Token: [p:569ch t:940ch c:2084ch flow:authorize_continue]
+[23:40:38] ⚠️  [#649 | taracastaneda5475@outlook.de] Autopay gagal [Login]: Access token gagal didapat
+[23:40:38] 🚫 Recovery gagal: [Login] Access token gagal didapat
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[23:40:38] ⚠️ [Bot] Task failed, re-queuing replacement for 6276972957 (14/50 retries used, 36 left)
+[23:40:38] 🔵 [Pool] Selesai/Release slot untuk task task_21_1777653517172 (User 6276972957)
+[23:40:38] 🔵 [Pool] Menjalankan task task_28_1777653517172 untuk User 6276972957 - Mode: auto_autopay
+[23:40:38] 🔵 [LuckMail] Menyiapkan pembelian email dengan domain: outlook.de
+[23:40:38] 🔵  [#864 | juliesimmons8746@outlook.de] CSRF ✓
+[23:40:38] 🔵  [#701 | mrjohn7427@outlook.de] Authorize ✓
+[23:40:38] 🔵  [#701 | mrjohn7427@outlook.de] Sentinel...
+[23:40:38] ✅ [LuckMail] Kode verifikasi ditemukan: 931528
+[23:40:38] 🔵  [#736 | margaretmccormick2311@outlook.de] Sesi: Mencoba kode 931528...
+[23:40:38] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Sesi: CSRF ✓
+[23:40:39] 🔵  [#175 | josephlambert6440@outlook.de] Sesi: Email dikirim ✓
+[23:40:39] 🔵  [#175 | josephlambert6440@outlook.de] Sesi: Rute kode verifikasi
+[23:40:39] 🔵  [#175 | josephlambert6440@outlook.de] Sesi: Tantangan kode...
+[23:40:39] 🔵 [#175] Waiting for OTP from LuckMail for josephlambert6440@outlook.de...
+[23:40:39] 🔵 [LuckMail] Memulai pencarian OTP untuk josephlambert6440@outlook.de (Token: tok_7bb6e25a6d76eed6b83021376fe8eeed)...
+[23:40:39] 🔍 [LuckMail] Memiliki record otp sebelumnya: 096090, akan di-ignore.
+[23:40:39] 🔵 [LuckMail] Berhasil membeli email: dorothyterry2000@outlook.de (Token: tok_17ce02991dd36710892a429f0fe8a7c8, ID: 1856813)
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ SESSION: dorothyterry2000@outlook.de                     ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+[23:40:39] 🔵 Mode: Auto Signup + Autopay - User: 6276972957
+[23:40:39] 🔵 Menginisialisasi engine...
+[23:40:39] 🔵 Proses pendaftaran sedang berjalan...
+[23:40:39] 🔵  [#797 | dorothyterry2000@outlook.de] Memulai... (percobaan 1/3)
+[23:40:39] 🔵  [#797 | dorothyterry2000@outlook.de] Init session
+[23:40:39] 🔵  [#864 | juliesimmons8746@outlook.de] Authorize...
+[23:40:39] 🔵  [#442 | cynthiarodriguez7080@outlook.de] Sesi: URL otorisasi ✓
+[23:40:39] 🔵  [#736 | margaretmccormick2311@outlook.de] Sesi: Kode ✓
+[23:40:39] ✅  [#634 | williamanderson3730@outlook.de] ChatGPT Plus ✓ (Local IP)
+[23:40:39] 🔵  [#634 | williamanderson3730@outlook.de] Verifikasi akhir langganan API...
+[23:40:40] 🔍 [LuckMail] Mendapatkan kode OTP 690100 tapi ini adalah kode lama. Melanjutkan polling... (2/10)
+[23:40:40] ✅  [#261 | michaelmaldonado2884@outlook.de] Checkout ✓ (Japan)
+[23:40:40] 🔵  [#261 | michaelmaldonado2884@outlook.de] Inisiasi pembayaran...
+[23:40:40] 🔵  [#797 | dorothyterry2000@outlook.de] CSRF ✓
+[23:40:40] 🔍  [#261 | michaelmaldonado2884@outlook.de] Stripe session ✓
+[23:40:40] 🔵 Sentinel/req ✓
+[23:40:40] 🔵 Challenge: pow(d=07a120) turnstile(18276ch) so(no)
+[23:40:40] 🔵 PoW ✓ (609ch)
+[23:40:40] 🔵 VM: 88 instructions
+[23:40:40] 🔵 VM ✓ (924ch)
+[23:40:40] 🔵 Turnstile ✓ (924ch)
+[23:40:40] 🔵 Token: [p:609ch t:924ch c:1828ch flow:username_password_create]
+[23:40:40] 🔵  [#701 | mrjohn7427@outlook.de] Sentinel ✓ (3461ch)
+[23:40:40] 🔵  [#701 | mrjohn7427@outlook.de] Register...
+[23:40:40] 🔵 Menerima sinyal interupsi (Ctrl+C). Menutup sistem...
+PS C:\Users\Administrator\Documents\bot\newgptbot> [23:40:40] 🔍  [#261 | michaelmaldonado2884@outlook.de] Payment method ✓ (pm_1TSK7KC6h1nxGoI32cTT0ajD)
+[23:40:41] 🔵 [Pool] Startup reset: semua slot dikembalikan ke available.
