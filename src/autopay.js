@@ -2086,13 +2086,48 @@ class ChatGPTAutopay {
       if (checkoutErr) throw checkoutErr;
       logger.info(this.tag + "Inisiasi pembayaran...");
       const a = generateBillingAddress(this.name);
-      const [, b] = await Promise.all([
-        this.initStripeCheckout(),
-        this.initStripeSession(),
-        this.createPaymentMethod(a),
-      ]);
-      logger.info(this.tag + "Konfirmasi pembayaran...");
-      const c = await this.confirmCheckout(b);
+      
+      let b, c;
+      let stripeErr = null;
+      let originalStripeClient = this.stripeClient;
+      
+      for (let _st = 0; _st < 5; _st++) {
+        try {
+          if (_st === 3) {
+            logger.warn(this.tag + "Mencoba fallback ke IP Local untuk Stripe API...");
+            const { client: lc } = createClient(null);
+            this.stripeClient = lc;
+          }
+
+          const [, stripeSession] = await Promise.all([
+            this.initStripeCheckout(),
+            this.initStripeSession(),
+            this.createPaymentMethod(a),
+          ]);
+          b = stripeSession;
+          
+          logger.info(this.tag + "Konfirmasi pembayaran...");
+          c = await this.confirmCheckout(b);
+          
+          stripeErr = null;
+          break; // Sukses, keluar dari loop retry
+        } catch (e) {
+          stripeErr = e;
+          const errMsg = e.message || '';
+          // Cek apakah ini error terkait proxy / upstream
+          const isProxyError = errMsg.includes('SG no upstream') || errMsg.includes('405') || errMsg.includes('502') || errMsg.includes('503') || errMsg.includes('timeout') || errMsg.includes('socket') || errMsg.includes('ECONN');
+          
+          if (isProxyError && _st < 4) {
+            const usingMode = _st < 2 ? 'Proxy SGP' : 'IP Local';
+            logger.warn(this.tag + `Proxy error saat inisiasi Stripe: ${errMsg.substring(0, 60)}... Retrying with ${usingMode} in 5s... (${_st + 1}/5)`);
+            await sleep(5000);
+          } else {
+            throw e; // Bukan error proxy, atau jatah retry habis -> langsung lempar error ke atas
+          }
+        }
+      }
+      this.stripeClient = originalStripeClient; // Kembalikan ke proxy semula
+      if (stripeErr) throw stripeErr;
       this._pastStripe = !![];
       logger.info(this.tag + "Arah midtrans...");
       const d = await this.followStripeRedirect(c);
