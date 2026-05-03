@@ -34,7 +34,7 @@ class ChatGPTSignup {
       }
       return rawProxy;
     };
-    const krJp = Math.random() > 0.5 ? 'kr' : 'jp';
+    const krJp = Math.random() > 0.5 ? 'us' : 'jp';
     this.proxyUrl = getProxy(krJp) || rawProxy;
 
     this.proxyConfig = a.proxyConfig || null;

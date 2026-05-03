@@ -1013,10 +1013,21 @@ function updateStatusFor(chatId, text, accountInfo = null, isQueued = false) {
 async function sendAccountJsonFile(chatId, results) {
     if (!bot || !results || results.length === 0) return;
     try {
-        const ts = new Date().getTime();
+        // Hitung waktu UTC+7
+        const now = new Date();
+        const utc7 = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+        const dateStr = utc7.getUTCFullYear().toString() + 
+                        (utc7.getUTCMonth() + 1).toString().padStart(2, '0') + 
+                        utc7.getUTCDate().toString().padStart(2, '0') + '_' + 
+                        utc7.getUTCHours().toString().padStart(2, '0') + 
+                        utc7.getUTCMinutes().toString().padStart(2, '0') + 
+                        utc7.getUTCSeconds().toString().padStart(2, '0');
 
         const formattedData = {};
         let plusCount = 0;
+        let provider = 'mix';
+        const providers = new Set();
+
         results.forEach(acc => {
             // Hanya masukkan akun yang BERHASIL PLUS ke dalam JSON report agar tidak nyampah
             if (acc && acc.email && acc.accountType === 'Plus') {
@@ -1027,8 +1038,15 @@ async function sendAccountJsonFile(chatId, results) {
                     mailToken: acc.mailToken || 'not_available'
                 };
                 plusCount++;
+                if (acc.mailProvider) providers.add(acc.mailProvider);
             }
         });
+
+        if (providers.size === 1) {
+            provider = Array.from(providers)[0];
+        } else if (providers.size === 0) {
+            provider = 'unknown';
+        }
 
         if (plusCount === 0) {
             logger.info(`[Bot] Tidak ada akun Plus dalam batch ini. Skip kirim file.`);
@@ -1040,7 +1058,7 @@ async function sendAccountJsonFile(chatId, results) {
         const uData = db.getUser(chatId);
         const reportFormat = (uData && uData.reportFormat) || 'with_tokens';
         
-        const txtFileName = `${plusCount}_plus_at_${ts}.txt`;
+        const txtFileName = `PLUS_${plusCount}_${provider}_[${chatId}]_${dateStr}.txt`;
         const txtFilePath = path.join(REPORTS_DIR, txtFileName);
         const txtContent = Object.values(formattedData)
             .map((acc, i) => {
