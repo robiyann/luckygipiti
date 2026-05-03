@@ -1215,7 +1215,7 @@ async function checkAndSendBatchReport(chatId) {
                          `📦 Total     : <b>${totalDispatched} tasks run</b>\n\n` +
                          `<i>Preparing report for ${successCount} Plus accounts...</i>`;
         
-        bot.sendMessage(chatId, summaryMsg, { parse_mode: 'HTML' });
+        bot.sendMessage(chatId, summaryMsg, { parse_mode: 'HTML' }).catch(() => {});
 
         // Beri jeda sedikit agar dashboard status FINISHED terkirim duluan
         setTimeout(() => sendAccountJsonFile(chatId, results), 2500);
