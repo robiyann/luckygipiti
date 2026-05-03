@@ -66,6 +66,7 @@ function getUserState(chatId) {
             batchPlusCount: 0,       // Plus accounts successfully created so far
             batchTotalDispatched: 0, // Total tasks dispatched to queue
             isBatchMode: false,
+            lastBatchEditTime: 0,
             setupStep: null 
         });
     }
@@ -1147,23 +1148,30 @@ function handleTaskResult(chatId, result) {
         // Kirim langsung tanpa melalui filter batch di updateStatusFor
         if (bot) {
             const batchState = getUserState(chatId);
-            const reply_markup = { inline_keyboard: [[{ text: "🛑 Cancel Batch", callback_data: "cancel_process" }]] };
-            if (batchState.lastStatusMessageId) {
-                bot.editMessageText(batchText, {
-                    chat_id: chatId,
-                    message_id: batchState.lastStatusMessageId,
-                    parse_mode: 'HTML',
-                    reply_markup
-                }).catch(async (err) => {
-                    if (!err.message.includes('message is not modified')) {
-                        const sent = await bot.sendMessage(chatId, batchText, { parse_mode: 'HTML', reply_markup }).catch(() => null);
+            const now = Date.now();
+            
+            // Debounce: Edit maksimal 1x per 3 detik untuk menghindari 429 Too Many Requests
+            if (now - (batchState.lastBatchEditTime || 0) > 3000) {
+                batchState.lastBatchEditTime = now;
+                const reply_markup = { inline_keyboard: [[{ text: "🛑 Cancel Batch", callback_data: "cancel_process" }]] };
+                if (batchState.lastStatusMessageId) {
+                    bot.editMessageText(batchText, {
+                        chat_id: chatId,
+                        message_id: batchState.lastStatusMessageId,
+                        parse_mode: 'HTML',
+                        reply_markup
+                    }).catch(async (err) => {
+                        if (err.message.includes('429')) return; // Abaikan log error 429
+                        if (!err.message.includes('message is not modified')) {
+                            const sent = await bot.sendMessage(chatId, batchText, { parse_mode: 'HTML', reply_markup }).catch(() => null);
+                            if (sent) batchState.lastStatusMessageId = sent.message_id;
+                        }
+                    });
+                } else {
+                    bot.sendMessage(chatId, batchText, { parse_mode: 'HTML', reply_markup }).then(sent => {
                         if (sent) batchState.lastStatusMessageId = sent.message_id;
-                    }
-                });
-            } else {
-                bot.sendMessage(chatId, batchText, { parse_mode: 'HTML', reply_markup }).then(sent => {
-                    if (sent) batchState.lastStatusMessageId = sent.message_id;
-                }).catch(() => {});
+                    }).catch(() => {});
+                }
             }
         }
 
@@ -1339,7 +1347,9 @@ async function processUserMessageQueue(chatId) {
                             state.dashboardObscured = false;
                         }
                     } else {
-                        console.log(chalk.red("[Bot] Edit error: " + err.message));
+                        if (!err.message.includes('429')) {
+                            console.log(chalk.red("[Bot] Edit error: " + err.message));
+                        }
                     }
                 });
             } else {
@@ -1355,7 +1365,7 @@ async function processUserMessageQueue(chatId) {
         }
 
         try {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 2500));
         } catch (e) {}
     }
 
