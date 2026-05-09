@@ -2,12 +2,12 @@ const initCycleTLS = require("cycletls");
 const BASE = "https://chatgpt.com";
 const AUTH_BASE = "https://auth.openai.com";
 const CHROME_JA3 =
-  "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0";
+  "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513-41,29-23-24,0";
 const CHROME_H2 = "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p";
 const CHROME_UA =
-  "Mozilla/5.0\x20(Windows\x20NT\x2010.0;\x20Win64;\x20x64)\x20AppleWebKit/537.36\x20(KHTML,\x20like\x20Gecko)\x20Chrome/147.0.0.0\x20Safari/537.36";
+  "Mozilla/5.0\x20(Windows\x20NT\x2010.0;\x20Win64;\x20x64)\x20AppleWebKit/537.36\x20(KHTML,\x20like\x20Gecko)\x20Chrome/136.0.0.0\x20Safari/537.36";
 const CHROME_SEC_CH_UA =
-  "\x22Chromium\x22;v=\x22147\x22,\x20\x22Not/A)Brand\x22;v=\x2224\x22,\x20\x22Google\x20Chrome\x22;v=\x22147\x22";
+  "\x22Chromium\x22;v=\x22136\x22,\x20\x22Google\x20Chrome\x22;v=\x22136\x22,\x20\x22Not.A/Brand\x22;v=\x2299\x22";
 class CookieJar {
   constructor() {
     this["store"] = new Map();
@@ -91,12 +91,14 @@ class TLSSession {
   }
   async ["getHtml"](a, b = {}) {
     const c = this["_baseOpts"](a, {
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+      "Accept-Encoding": "gzip, deflate, br, zstd",
       "sec-fetch-dest": "document",
       "sec-fetch-mode": "navigate",
       "sec-fetch-site": "none",
       "sec-fetch-user": "?1",
       "upgrade-insecure-requests": "1",
+      "Priority": "u=0, i",
       ...b,
     });
     const d = await this["tls"](a, c, "get");

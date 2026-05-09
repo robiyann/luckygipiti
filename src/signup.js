@@ -22,6 +22,13 @@ class ChatGPTSignup {
     this.sentinelId = uuidv4();
     this.tag = a.threadId ? " \u001b[36m[#" + a.threadId + (this.email ? " | " + this.email : "") + "]\u001b[0m " : "";
     this.otpConfig = { provider: "manual" };
+    // Proxy pool untuk rotasi saat CF challenge
+    this._proxyPool = [
+      process.env.KOREA_PROXY_URL || null,
+      process.env.GENERAL_PROXY_URL || a.proxyUrl || null,
+      process.env.SGP_PROXY_URL || null,
+    ].filter(Boolean);
+    this._proxyPoolIndex = 0;
     // Sticky session proxy for DataImpulse
     const sessionToken = this.sessionId.substring(0, 8);
     const rawProxy = process.env.GENERAL_PROXY_URL || a.proxyUrl || null;
@@ -34,8 +41,9 @@ class ChatGPTSignup {
       }
       return rawProxy;
     };
-    const krJp = Math.random() > 0.5 ? 'us' : 'jp';
-    this.proxyUrl = getProxy(krJp) || rawProxy;
+    const diRegions = ['us', 'gb', 'ca', 'de', 'nl', 'au', 'fr'];
+    const randRegion = diRegions[Math.floor(Math.random() * diRegions.length)];
+    this.proxyUrl = getProxy(randRegion) || rawProxy;
 
     this.proxyConfig = a.proxyConfig || null;
     this.signupRetries = a.signupRetries || 0x3;
@@ -47,7 +55,7 @@ class ChatGPTSignup {
     this.csrfToken = null;
     this.authorizeUrl = null;
   }
-  _refreshClient() {
+  _refreshClient(useCfRotation = false) {
     if (this.proxyConfig) {
       const {
         country: c,
@@ -57,6 +65,11 @@ class ChatGPTSignup {
         port: g,
       } = this.proxyConfig;
       this.proxyUrl = buildProxyUrl(c, d, e, f, g);
+    } else if (useCfRotation && this._proxyPool.length > 0) {
+      // Rotasi ke proxy pool berikutnya agar dapat IP berbeda saat CF challenge
+      this._proxyPoolIndex = (this._proxyPoolIndex + 1) % this._proxyPool.length;
+      this.proxyUrl = this._proxyPool[this._proxyPoolIndex];
+      logger.info(this.tag + `CF Proxy rotasi → pool[${this._proxyPoolIndex}]: ${this.proxyUrl.replace(/:([^:@]+)@/, ':***@')}`);
     } else {
       // Re-apply sticky session to ensure it persists across refreshes
       const sessionToken = this.sessionId.substring(0, 8);
@@ -70,8 +83,9 @@ class ChatGPTSignup {
         }
         return rawProxy;
       };
-      const krJp = Math.random() > 0.5 ? 'kr' : 'jp';
-      this.proxyUrl = getProxy(krJp) || rawProxy;
+      const diRegions = ['us', 'gb', 'ca', 'de', 'nl', 'au', 'fr'];
+      const randRegion = diRegions[Math.floor(Math.random() * diRegions.length)];
+      this.proxyUrl = getProxy(randRegion) || rawProxy;
     }
     const { client: a, jar: b } = createClient(this.proxyUrl);
     this.client = a;
@@ -292,6 +306,8 @@ class ChatGPTSignup {
     const { runSignupViaAPI: a } = require("./utils/apiSignup");
     const b = this.signupRetries || 0xa;
     let c = 0x0;
+    let _lastFailStep = null;
+    let _lastFailMsg = null;
     for (let d = 0x0; d < b; d++) {
       if (d > 0x0) {
         if (!this.proxyUrl && !this.proxyConfig) {
@@ -301,10 +317,16 @@ class ChatGPTSignup {
         logger.info(
           this.tag + "Mencoba ulang... (percobaan " + (d + 1) + "/" + b + ")",
         );
-        this._refreshClient();
+        // Jika CF challenge: rotasi proxy pool & jeda lebih lama agar IP fresh
+        const isCfRetry = _lastFailStep === 'init' && _lastFailMsg && (
+          _lastFailMsg.includes('403') || _lastFailMsg.includes('503') ||
+          _lastFailMsg.includes('CF:challenge') || _lastFailMsg.includes('cf-mitigated')
+        );
+        this._refreshClient(isCfRetry);
         this.deviceId = uuidv4();
         this.sessionId = uuidv4();
-        await new Promise((k) => setTimeout(k, 0x3e8));
+        const retryDelay = isCfRetry ? 3000 : 1000;
+        await new Promise((k) => setTimeout(k, retryDelay));
       }
       logger.info(
         this.tag + "Memulai... (percobaan " + (d + 0x1) + "/" + b + ")",
@@ -376,6 +398,10 @@ class ChatGPTSignup {
         j = n?.error?.message || n?.detail || n?.message || i;
       } catch { }
       if (!j) j = h ? JSON.stringify(h).substring(0x0, 0x64) : "unknown";
+
+      // Simpan info kegagalan terakhir untuk keputusan rotasi proxy di iterasi berikutnya
+      _lastFailStep = f;
+      _lastFailMsg = j;
 
       if (j && typeof j === 'string' && j.includes("Invalid authorization step")) {
         logger.error(this.tag + "register: " + j + " (Akun kemungkinan sudah terdaftar. Skip retry)");

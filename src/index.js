@@ -97,6 +97,11 @@ async function handleAccountTask(task) {
             // Check cancellation before each attempt
             if (cancelToken && cancelToken.cancelled) {
                 logger.warn(`[#${threadId}] Task cancelled by user before email purchase.`);
+                if (pointsReserved) {
+                    db.addPoints(userId, cost);
+                    pointsReserved = false;
+                    logger.info(`[#${threadId}] Points refunded: +${cost} (Reason: Cancelled before email purchase)`);
+                }
                 return { success: false, email: '', error: 'Cancelled by user', mailProvider };
             }
             try {
@@ -135,6 +140,11 @@ async function handleAccountTask(task) {
                 if (attempt === maxLuckRetries) {
                     const providerName = isTMail ? 'T-MAIL' : 'LUCKMAIL';
                     telegramHandler.updateStatusFor(chatId, `🚳 <b>${providerName} FAILED</b>\n${e.message}`);
+                    if (pointsReserved) {
+                        db.addPoints(userId, cost);
+                        pointsReserved = false;
+                        logger.info(`[#${threadId}] Points refunded: +${cost} (Reason: Email purchase failed after ${maxLuckRetries} retries)`);
+                    }
                     return { success: false, email: '', error: `${providerName}: ${e.message}`, mailProvider };
                 }
                 logger.warn(`Email purchase attempt ${attempt} failed: ${e.message}. Retrying in 5s...`);
@@ -142,6 +152,11 @@ async function handleAccountTask(task) {
                 for (let w = 0; w < 10; w++) {
                     await new Promise(r => setTimeout(r, 500));
                     if (cancelToken && cancelToken.cancelled) {
+                        if (pointsReserved) {
+                            db.addPoints(userId, cost);
+                            pointsReserved = false;
+                            logger.info(`[#${threadId}] Points refunded: +${cost} (Reason: Cancelled during email purchase retry wait)`);
+                        }
                         return { success: false, email: '', error: 'Cancelled by user', mailProvider };
                     }
                 }
@@ -151,6 +166,12 @@ async function handleAccountTask(task) {
 
     // Check if cancelled before initializing heavy browser engine
     if (cancelToken && cancelToken.cancelled) {
+        if (pointsReserved) {
+            db.addPoints(userId, cost);
+            pointsReserved = false;
+            logger.info(`[#${threadId}] Points refunded: +${cost} (Reason: Cancelled after email purchase)`);
+        }
+        if (purchaseId) luckMailApi.cancelEmail(purchaseId);
         return { success: false, email: currentEmail, error: 'Cancelled by user', mailProvider };
     }
 
