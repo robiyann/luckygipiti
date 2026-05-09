@@ -2244,7 +2244,7 @@ class ChatGPTAutopay {
       };
     } catch (h) {
       const j = this._pastStripe ? "GoPay" : this.accessToken ? "Checkout" : "Login";
-      const errMsg = h.message && h.message.length > 0 ? h.message : JSON.stringify(h);
+      const errMsg = (h.message && h.message.length > 0) ? h.message : (JSON.stringify(h) || String(h) || 'Unknown error');
       const i = errMsg.length > 300 ? errMsg.substring(0, 300) + "..." : errMsg;
       logger.warn(this.tag + `Autopay gagal [${j}]: ${i}`);
       return {
